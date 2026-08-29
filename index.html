@@ -116,6 +116,16 @@
   .achb.got{opacity:1;border-color:var(--accent);background:#2A2416}
   .achb .an{font-size:10px;font-weight:800;line-height:1.3}
   .achb .ad{font-size:8px;color:var(--sub);font-weight:600;margin-top:3px;line-height:1.3}
+  .zkr{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px;opacity:.55}
+  .zkr.got{opacity:1}
+  .zke{font-size:26px;flex:0 0 auto}
+  .zkb{flex:1}
+  .zkn{font-size:13px;font-weight:900}
+  .zkd{font-size:11px;color:var(--sub);font-weight:600;line-height:1.5;margin-top:3px}
+  .zktag{font-size:8px;padding:2px 7px;border-radius:6px;font-weight:800;vertical-align:1px}
+  .zktag.N{background:#25443A;color:#8AA79A}
+  .zktag.R{background:#123D31;color:#4FE3AC}
+  .zktag.SR{background:#3A2A12;color:var(--accent)}
   .row2{display:flex;gap:10px}
   .row2 .btn{flex:1}
   .help{font-size:11px;color:var(--sub);line-height:1.6;margin-top:8px}
@@ -498,6 +508,60 @@ if(state.maxCombo==null)state.maxCombo=0;
 if(!state.ach)state.ach=[];
 if(!state.streak)state.streak={day:'',count:0};
 if(state.taBest==null)state.taBest=0;
+if(!state.cards)state.cards=[];
+
+const EVO=[
+ {n:'化学進化のスープ',e:'🧪'},{n:'LUCA（共通祖先）',e:'🌋'},{n:'原核生物',e:'🦠'},
+ {n:'真核生物',e:'🔬'},{n:'多細胞生物',e:'🪸'},{n:'カンブリアの爆発児',e:'🦐'},
+ {n:'魚類（顎の獲得）',e:'🐟'},{n:'両生類（上陸成功）',e:'🐸'},{n:'爬虫類（羊膜の発明）',e:'🦎'},
+ {n:'哺乳類（恒温の獲得）',e:'🐘'},{n:'霊長類（樹上の賢者）',e:'🐒'},{n:'ホモ・サピエンス',e:'🧑‍🔬'},
+ {n:'知の探究者',e:'📚'},{n:'適応放散マスター',e:'🌏'},{n:'進化し続ける者',e:'🧬'},
+];
+function evoTitle(l){return EVO[Math.min(l,EVO.length)-1];}
+
+const CARDS=[
+ {id:'kumamushi',r:'N',e:'🐻',n:'クマムシ',d:'乾眠状態なら真空も放射線も耐える。ただし通常時はわりと普通に死ぬ'},
+ {id:'debanezumi',r:'N',e:'🐀',n:'ハダカデバネズミ',d:'ほぼ老化せず、がんにも強い真社会性哺乳類。女王が繁殖を独占'},
+ {id:'upa',r:'N',e:'🦎',n:'ウーパールーパー',d:'幼形成熟（ネオテニー）の代表。手足も心臓の一部も再生できる'},
+ {id:'tako',r:'N',e:'🐙',n:'タコ',d:'ニューロンの大半が腕にある。腕がある程度勝手に判断して動く'},
+ {id:'manbou',r:'N',e:'🐟',n:'マンボウ',d:'一度に約3億個の卵を産むとされる。生き残りはごくわずか、r戦略の極み'},
+ {id:'namakemono',r:'N',e:'🦥',n:'ナマケモノ',d:'代謝が遅すぎて排泄は週1回。木から降りるのはそのときだけ'},
+ {id:'kamonohashi',r:'N',e:'🦆',n:'カモノハシ',d:'卵を産む哺乳類。オスは毒針を持ち、くちばしで電気を感じる'},
+ {id:'mijinko',r:'N',e:'🦐',n:'ミジンコ',d:'捕食者の気配を感じると頭がとがる誘導防御。世代で形が変わる'},
+ {id:'nenjumo',r:'N',e:'🦠',n:'ネンジュモ',d:'シアノバクテリアの仲間。この系統が地球に酸素をもたらした'},
+ {id:'zourimushi',r:'N',e:'🧫',n:'ゾウリムシ',d:'単細胞なのに刺激への慣れのような行動を示す。繊毛で泳ぐ'},
+ {id:'midorimushi',r:'N',e:'🟢',n:'ミドリムシ',d:'光合成もするし泳ぎもする。動物と植物の教科書的な中間例'},
+ {id:'ojigisou',r:'N',e:'🌿',n:'オジギソウ',d:'触れると葉を閉じる。植物にも活動電位に似た電気信号がある'},
+ {id:'ankou',r:'R',e:'🎣',n:'チョウチンアンコウ',d:'種によってはオスがメスに融合し、精子供給器官と化す（性的寄生）'},
+ {id:'benikurage',r:'R',e:'🪼',n:'ベニクラゲ',d:'成体からポリプに若返れる「不老不死」クラゲ。理論上は死ににくい'},
+ {id:'denkiunagi',r:'R',e:'⚡',n:'デンキウナギ',d:'最大860Vを記録。3種類の発電器官を狩りと探知で使い分ける'},
+ {id:'ahoudori',r:'R',e:'🕊',n:'アホウドリ',d:'ほぼ羽ばたかずに数千kmを飛ぶ。風の速度差を利用する滑翔の達人'},
+ {id:'hokkyokukujira',r:'R',e:'🐋',n:'ホッキョククジラ',d:'寿命200年超の哺乳類。DNA修復やがん抑制の遺伝子が充実'},
+ {id:'guntaiari',r:'R',e:'🐜',n:'グンタイアリ',d:'固定の巣を持たず、自分たちの体を組んで「生きた巣」を作る'},
+ {id:'rafflesia',r:'R',e:'🌺',n:'ラフレシア',d:'世界最大級の花。葉も茎も根もない全寄生植物で、開花は数日だけ'},
+ {id:'nenkin',r:'R',e:'🟡',n:'モジホコリ（粘菌）',d:'脳がないのに迷路の最短経路を見つける。鉄道網の再現実験でも有名'},
+ {id:'shako',r:'R',e:'🦞',n:'シャコ',d:'パンチの加速は銃弾級でキャビテーションも起こす。色覚受容体は16種'},
+ {id:'hakiriari',r:'R',e:'🍄',n:'ハキリアリ',d:'葉を切って菌を栽培する農業アリ。人類より数千万年早く農業を発明'},
+ {id:'penguin',r:'R',e:'🐧',n:'ペンギン',d:'海水を飲んでも塩類腺で塩を排出できる。翼は水中飛行に最適化'},
+ {id:'same',r:'R',e:'🦈',n:'サメ',d:'4億年前からほぼ同じ設計。ロレンチーニ器官で獲物の電場を感知'},
+ {id:'tiktaalik',r:'SR',e:'🐟',n:'ティクターリク',d:'魚と四肢動物のミッシングリンク。ヒレの中に腕の骨格を持つ'},
+ {id:'anomalocaris',r:'SR',e:'🦐',n:'アノマロカリス',d:'カンブリア紀の海の頂点捕食者。当時としては巨大な約1m'},
+ {id:'coelacanth',r:'SR',e:'🐠',n:'シーラカンス',d:'絶滅したと思われていた生きた化石。四肢動物に近い肉鰭類'},
+ {id:'deinococcus',r:'SR',e:'☢️',n:'D.ラディオデュランス',d:'ヒト致死量の数千倍の放射線に耐える細菌。ゲノムを再組立てして復活'},
+ {id:'luca',r:'SR',e:'🌋',n:'LUCA',d:'全生物の共通祖先。深海熱水噴出孔で生まれたという説が有力'},
+ {id:'hela',r:'SR',e:'🧫',n:'HeLa細胞',d:'1951年から培養され続ける不死の細胞株。現代生物学の陰の主役'},
+];
+function grantCard(){
+  const have=new Set(state.cards);
+  const pool=CARDS.filter(c=>!have.has(c.id));
+  if(!pool.length)return;
+  const W={N:6,R:3,SR:1};
+  let tot=0;pool.forEach(c=>tot+=W[c.r]);
+  let x=Math.random()*tot,pick=pool[0];
+  for(const c of pool){x-=W[c.r];if(x<=0){pick=c;break;}}
+  state.cards.push(pick.id);save();
+  setTimeout(()=>{toast('📖 新種はっけん！ '+pick.e+' '+pick.n+(pick.r==='SR'?'（超レア！）':pick.r==='R'?'（レア）':''));pop(pick.r==='SR'?20:10);},1400);
+}
 let curLv='all';
 
 const XPLV={easy:8,std:10,hard:14,ibo:20};
@@ -524,13 +588,14 @@ function touchStreak(){
   const ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
   state.streak.count=(state.streak.day===ys)?state.streak.count+1:1;
   state.streak.day=t;save();
-  if(state.streak.count>=2)toast('🔥 '+state.streak.count+'日連続！');
+  if(state.streak.count%5===0){toast('🔥 '+state.streak.count+'日連続達成！');grantCard();}
+  else if(state.streak.count>=2)toast('🔥 '+state.streak.count+'日連続！');
   checkAch();
 }
 function addXp(n){
   const before=lvlInfo(state.xp).level;
   state.xp+=n;const after=lvlInfo(state.xp).level;save();
-  if(after>before){pop(20);setTimeout(()=>toast('🎉 レベル'+after+'に上がった！'),350);}
+  if(after>before){pop(20);setTimeout(()=>toast('🎉 Lv.'+after+'！「'+evoTitle(after).n+'」に進化！'),350);grantCard();}
   checkAch();
 }
 function unlock(id){
@@ -538,6 +603,7 @@ function unlock(id){
   state.ach.push(id);save();
   const a=ACH.find(x=>x.id===id);
   setTimeout(()=>toast('🏅 実績解除: '+(a?a.name:id)),700);
+  grantCard();
 }
 function iboCorrect(){let n=0;Q.forEach(q=>{if(q.lv==='ibo'&&state.stats[q.id])n+=state.stats[q.id].c;});return n;}
 function checkAch(){
@@ -604,13 +670,14 @@ function renderHome(){
     <div class="statcard" style="padding:14px 20px;gap:12px">
       <div style="flex:1">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-          <span style="font-family:Poppins;font-weight:800;font-size:18px;color:var(--accent)">Lv.${lvlInfo(state.xp).level}</span>
+          <span style="font-family:Poppins;font-weight:800;font-size:18px;color:var(--accent)">Lv.${lvlInfo(state.xp).level}</span> <span style="font-size:12px;font-weight:800;color:var(--primary)">${evoTitle(lvlInfo(state.xp).level).e} ${evoTitle(lvlInfo(state.xp).level).n}</span>
           <span style="font-size:11px;color:var(--sub);font-weight:700">${state.streak.count>=2?'🔥 '+state.streak.count+'日連続':'今日も1問から'}</span>
         </div>
         <div class="bar-top" style="margin:0 0 4px"><i style="width:${lvlInfo(state.xp).cur/lvlInfo(state.xp).need*100}%"></i></div>
         <div style="font-size:10px;color:var(--sub);font-weight:700;text-align:right">あと ${lvlInfo(state.xp).need-lvlInfo(state.xp).cur} XP でレベルアップ</div>
       </div>
     </div>
+    <button class="btn btn-ghost" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center" onclick="renderZukan()"><span>📖 生物図鑑</span><span style="font-family:Poppins;font-weight:800;color:var(--accent)">${state.cards.length}/${CARDS.length}</span></button>
     <div class="statcard" style="display:block;padding:16px 18px">
       <h2 style="font-size:13px;font-weight:900;margin-bottom:10px">📊 難易度べつのきろく</h2>
       ${['easy','std','hard','ibo'].map(k=>{
@@ -640,6 +707,24 @@ function renderHome(){
     <p class="help">難易度を選ぶと、分野べつ・ミックスの出題がそのレベルにしぼられるよ。XPは難しい問題ほど多くもらえる（IBO級は1問20XP）。</p>`;
 }
 function setLv(k){curLv=k;renderHome();}
+function renderZukan(){
+  const have=new Set(state.cards);
+  const sec=(r,label)=>{
+    const cs=CARDS.filter(c=>c.r===r);
+    return `<div class="label">${label}（${cs.filter(c=>have.has(c.id)).length}/${cs.length}）</div>`+
+      cs.map(c=>have.has(c.id)
+        ?`<div class="zkr got"><span class="zke">${c.e}</span><div class="zkb"><div class="zkn">${c.n} <span class="zktag ${c.r}">${c.r==='SR'?'超レア':c.r==='R'?'レア':'ふつう'}</span></div><div class="zkd">${c.d}</div></div></div>`
+        :`<div class="zkr"><span class="zke">🔒</span><div class="zkb"><div class="zkn" style="color:var(--sub)">？？？</div><div class="zkd">レベルアップ・実績・連続学習でカードが手に入る</div></div></div>`).join('');
+  };
+  screen.innerHTML=`
+    <button class="back" onclick="renderHome()">‹ もどる</button>
+    <div class="qhead"><h2>📖 生物図鑑</h2><span class="combo" style="color:var(--accent)">${state.cards.length}/${CARDS.length} 発見</span></div>
+    ${state.cards.length>=CARDS.length?'<div class="statcard" style="justify-content:center"><b style="color:var(--accent)">🏆 全種コンプリート！すごい！</b></div>':''}
+    ${sec('SR','⭐ 超レア')}
+    ${sec('R','🔹 レア')}
+    ${sec('N','・ ふつう')}
+    <p class="help">レベルアップ、実績解除、連続学習5日ごとに、未発見の生物からランダムで1種見つかる。超レアほど出にくい。</p>`;
+}
 
 let g={list:[],i:0,score:0,miss:[],answered:false,combo:0,maxCombo:0,ta:false,t:0,timer:null,field:'all'};
 function startQuiz(field,ta){
