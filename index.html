@@ -116,6 +116,15 @@
   .achb.got{opacity:1;border-color:var(--accent);background:#2A2416}
   .achb .an{font-size:10px;font-weight:800;line-height:1.3}
   .achb .ad{font-size:8px;color:var(--sub);font-weight:600;margin-top:3px;line-height:1.3}
+    .evr{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:11px 13px;margin-bottom:7px;opacity:.45}
+  .evr.got{opacity:1}
+  .evr.cur{border-color:var(--accent);background:#2A2416;box-shadow:0 0 0 1.5px var(--accent) inset}
+  .evr .evn{font-family:'Poppins';font-size:11px;font-weight:800;color:var(--sub);width:20px;flex:0 0 auto;text-align:right}
+  .evr .eve{font-size:22px;flex:0 0 auto}
+  .evr .evb{flex:1;min-width:0}
+  .evr .evt{font-size:13px;font-weight:800;line-height:1.35}
+  .evr .evd{font-family:'Poppins';font-size:10px;color:var(--sub);font-weight:700;margin-top:2px}
+  .evr.cur .evd{color:var(--accent)}
   .zkr{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px;opacity:.55}
   .zkr.got{opacity:1}
   .zke{font-size:26px;flex:0 0 auto}
@@ -512,10 +521,17 @@ if(!state.cards)state.cards=[];
 
 const EVO=[
  {n:'化学進化のスープ',e:'🧪'},{n:'LUCA（共通祖先）',e:'🌋'},{n:'原核生物',e:'🦠'},
- {n:'真核生物',e:'🔬'},{n:'多細胞生物',e:'🪸'},{n:'カンブリアの爆発児',e:'🦐'},
- {n:'魚類（顎の獲得）',e:'🐟'},{n:'両生類（上陸成功）',e:'🐸'},{n:'爬虫類（羊膜の発明）',e:'🦎'},
- {n:'哺乳類（恒温の獲得）',e:'🐘'},{n:'霊長類（樹上の賢者）',e:'🐒'},{n:'ホモ・サピエンス',e:'🧑‍🔬'},
- {n:'知の探究者',e:'📚'},{n:'適応放散マスター',e:'🌏'},{n:'進化し続ける者',e:'🧬'},
+ {n:'シアノバクテリア（酸素の発明）',e:'🫧'},{n:'真核生物（共生の成立）',e:'🔬'},
+ {n:'多細胞生物',e:'🪸'},{n:'カンブリアの爆発児',e:'🦐'},{n:'魚類（顎の獲得）',e:'🐟'},
+ {n:'軟骨魚（海の狩人）',e:'🦈'},{n:'両生類（上陸成功）',e:'🐸'},
+ {n:'爬虫類（羊膜の発明）',e:'🦎'},{n:'鳥類（飛翔の獲得）',e:'🦅'},
+ {n:'哺乳類（恒温の獲得）',e:'🐘'},{n:'霊長類（樹上の賢者）',e:'🐒'},
+ {n:'ホモ・サピエンス',e:'🧑‍🔬'},
+ {n:'観察する者',e:'🔎'},{n:'記載する者',e:'📓'},{n:'実験する者',e:'🧫'},
+ {n:'分子を読む者',e:'🧬'},{n:'データを語る者',e:'📊'},
+ {n:'生態系を見る者',e:'🌏'},{n:'仮説を立てる者',e:'📜'},
+ {n:'統合する者',e:'🧠'},{n:'生物学オリンピアン',e:'🏅'},
+ {n:'生命を解き明かす者',e:'🌟'},
 ];
 function evoTitle(l){return EVO[Math.min(l,EVO.length)-1];}
 
@@ -580,7 +596,14 @@ const ACH=[
  {id:'lv5',name:'脱皮',desc:'レベル5に到達'},
  {id:'lv10',name:'羽化',desc:'レベル10に到達'},
 ];
-function lvlInfo(xp){let l=1,need=100,acc=0;while(xp>=acc+need){acc+=need;l++;need=100*l;}return{level:l,cur:xp-acc,need};}
+const MAXLV=25;
+function xpNeed(l){return 60*l+4*l*l;}
+function lvlInfo(xp){
+  let l=1,acc=0,need=xpNeed(1);
+  while(l<MAXLV&&xp>=acc+need){acc+=need;l++;need=xpNeed(l);}
+  if(l>=MAXLV)return{level:MAXLV,cur:Math.max(0,xp-acc),need:xpNeed(MAXLV),max:true};
+  return{level:l,cur:xp-acc,need};
+}
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function touchStreak(){
   const t=todayStr();if(state.streak.day===t)return;
@@ -667,14 +690,14 @@ function renderHome(){
       <div class="stinfo"><h2>学習のきろく</h2>
         <div class="row"><div>正答率<b>${rate}%</b></div><div>ランク<b>${t?rankOf(rate):'--'}</b></div></div></div>
     </div>
-    <div class="statcard" style="padding:14px 20px;gap:12px">
+    <div class="statcard" style="padding:14px 20px;gap:12px;cursor:pointer" onclick="renderTitles()">
       <div style="flex:1">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
           <span style="font-family:Poppins;font-weight:800;font-size:18px;color:var(--accent)">Lv.${lvlInfo(state.xp).level}</span> <span style="font-size:12px;font-weight:800;color:var(--primary)">${evoTitle(lvlInfo(state.xp).level).e} ${evoTitle(lvlInfo(state.xp).level).n}</span>
-          <span style="font-size:11px;color:var(--sub);font-weight:700">${state.streak.count>=2?'🔥 '+state.streak.count+'日連続':'今日も1問から'}</span>
+          <span style="font-size:11px;color:var(--sub);font-weight:700">${state.streak.count>=2?'🔥 '+state.streak.count+'日連続 ›':'進化の記録 ›'}</span>
         </div>
-        <div class="bar-top" style="margin:0 0 4px"><i style="width:${lvlInfo(state.xp).cur/lvlInfo(state.xp).need*100}%"></i></div>
-        <div style="font-size:10px;color:var(--sub);font-weight:700;text-align:right">あと ${lvlInfo(state.xp).need-lvlInfo(state.xp).cur} XP でレベルアップ</div>
+        <div class="bar-top" style="margin:0 0 4px"><i style="width:${lvlInfo(state.xp).max?100:lvlInfo(state.xp).cur/lvlInfo(state.xp).need*100}%"></i></div>
+        <div style="font-size:10px;color:var(--sub);font-weight:700;text-align:right">${lvlInfo(state.xp).max?'最高到達！ 累計 '+state.xp.toLocaleString()+' XP':'あと '+(lvlInfo(state.xp).need-lvlInfo(state.xp).cur).toLocaleString()+' XP でレベルアップ'}</div>
       </div>
     </div>
     <button class="btn btn-ghost" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center" onclick="renderZukan()"><span>📖 生物図鑑</span><span style="font-family:Poppins;font-weight:800;color:var(--accent)">${state.cards.length}/${CARDS.length}</span></button>
@@ -707,6 +730,27 @@ function renderHome(){
     <p class="help">難易度を選ぶと、分野べつ・ミックスの出題がそのレベルにしぼられるよ。XPは難しい問題ほど多くもらえる（IBO級は1問20XP）。</p>`;
 }
 function setLv(k){curLv=k;renderHome();}
+function renderTitles(){
+  const lv=lvlInfo(state.xp).level;
+  const rows=EVO.map((t,i)=>{
+    const n=i+1, got=n<=lv, cur=n===lv;
+    const need=(()=>{let acc=0;for(let k=1;k<n;k++)acc+=xpNeed(k);return acc;})();
+    return `<div class="evr ${got?'got':''} ${cur?'cur':''}">
+      <span class="evn">${n}</span>
+      <span class="eve">${got?t.e:'🔒'}</span>
+      <div class="evb">
+        <div class="evt">${got?esc(t.n):'？？？'}</div>
+        <div class="evd">${cur?'いまここ':got?'到達済み':'必要 '+need.toLocaleString()+' XP'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  screen.innerHTML=`
+    <button class="back" onclick="renderHome()">‹ 戻る</button>
+    <div class="qhead"><h2>🧬 進化の記録</h2><span class="combo" style="color:var(--accent)">${lv}/${EVO.length}</span></div>
+    <p class="help" style="margin-bottom:12px">レベルが上がるたびに称号が進化する。生命の進化をたどり、その先は生物学者としての歩みに続く。</p>
+    ${rows}
+    <button class="btn btn-ghost" style="margin-top:10px" onclick="renderHome()">ホームに戻る</button>`;
+}
 function renderZukan(){
   const have=new Set(state.cards);
   const sec=(r,label)=>{
