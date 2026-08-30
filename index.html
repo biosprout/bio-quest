@@ -676,7 +676,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260830b';
+const APP_VER='20260830c';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -880,7 +880,7 @@ function renderQuiz(){
   const opts=shuffle(q.ch.map((c,k)=>({c,k})));
   screen.innerHTML=`
     <button class="back" onclick="quitQuiz()">‹ もどる</button>
-    <div class="qhead"><div class="left"><h2>${g.ta?'⏱ タイムアタック':'🧫 クイズ'}</h2>
+    <div class="qhead"><div class="left"><h2>${g.ta?'⏱ タイムアタック':'📝 クイズ'}</h2>
       ${g.combo>=2?`<span class="combo">🔥 ${g.combo}コンボ</span>`:''}</div>
       ${g.ta?`<span class="timer" id="tm">${g.t}</span>`:`<span class="combo">${g.i+1}/${g.list.length}</span>`}</div>
     <div class="bar-top"><i style="width:${g.i/g.list.length*100}%"></i></div>
