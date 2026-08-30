@@ -660,7 +660,7 @@ function grantCard(){
     const dup=cnt[c.id]>1;
     const msg=isHidden
       ? '🔮 隠し図鑑を発見！ '+c.e+' '+c.n+(dup?'（重複 ×'+cnt[c.id]+'）':'')
-      : '🔮 隠し図鑑を発見！ '+c.e+' '+c.n+(dup?'（重複 ×'+cnt[c.id]+'）':(c.r==='SR'?'（超レア！）':c.r==='R'?'（レア）':''));
+      : '📖 新種はっけん！ '+c.e+' '+c.n+(dup?'（重複 ×'+cnt[c.id]+'）':(c.r==='SR'?'（超レア！）':c.r==='R'?'（レア）':''));
     setTimeout(()=>{toast(msg);pop(dup?6:20);},1400);
   };
   const hid=CARDS.filter(c=>c.r==='H');
@@ -805,7 +805,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260830g';
+const APP_VER='20260830i';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -861,7 +861,7 @@ function renderHome(){
       <div style="flex:1">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
           <span style="font-family:Poppins;font-weight:800;font-size:18px;color:var(--accent)">Lv.${lvlInfo(state.xp).level}</span> <span style="font-size:12px;font-weight:800;color:var(--primary)">${evoTitle(lvlInfo(state.xp).level).e} ${evoTitle(lvlInfo(state.xp).level).n}</span>
-          <span style="font-size:11px;color:var(--sub);font-weight:700">${state.streak.count>=2?'🔥 '+state.streak.count+'日連続 ›':'進化の記録 ›'}</span>
+          <span style="font-size:11px;color:var(--sub);font-weight:700">${state.streak.count>=2?'🔥 '+state.streak.count+'日連続　':''}進化の記録 ›</span>
         </div>
         <div class="bar-top" style="margin:0 0 4px"><i style="width:${lvlInfo(state.xp).max?100:lvlInfo(state.xp).cur/lvlInfo(state.xp).need*100}%"></i></div>
         <div style="font-size:10px;color:var(--sub);font-weight:700;text-align:right">${lvlInfo(state.xp).max?'最高到達！ 累計 '+state.xp.toLocaleString()+' XP':'あと '+(lvlInfo(state.xp).need-lvlInfo(state.xp).cur).toLocaleString()+' XP でレベルアップ'}</div>
