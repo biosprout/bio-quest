@@ -143,6 +143,7 @@
   .zkn{font-size:13px;font-weight:900}
   .zkd{font-size:11px;color:var(--sub);font-weight:600;line-height:1.5;margin-top:3px}
   .zktag{font-size:8px;padding:2px 7px;border-radius:6px;font-weight:800;vertical-align:1px}
+  .dupn{font-family:Poppins;font-size:10px;font-weight:800;color:var(--accent);margin-left:2px}
   .zktag.N{background:#25443A;color:#8AA79A}
   .zktag.R{background:#123D31;color:#4FE3AC}
   .zktag.SR{background:#3A2A12;color:var(--accent)}
@@ -536,6 +537,10 @@ if(!state.ach)state.ach=[];
 if(!state.streak)state.streak={day:'',count:0};
 if(state.taBest==null)state.taBest=0;
 if(!state.cards)state.cards=[];
+if(!state.cardCount){
+  state.cardCount={};
+  (state.cards||[]).forEach(id=>{state.cardCount[id]=(state.cardCount[id]||0)+1;});
+}
 
 const EVO=[
  {n:'化学進化のスープ',e:'🧪'},{n:'LUCA（共通祖先）',e:'🌋'},{n:'原核生物',e:'🦠'},
@@ -634,22 +639,40 @@ const CARDS=[
  {id:'cicada_prime_h',r:'H',e:'🦗',n:'素数ゼミ',d:'13年と17年という素数の周期で羽化する。天敵や近縁種と羽化が重なりにくくなるという説明が有力とされる'},
 ];
 function grantCard(){
-  const have=new Set(state.cards||[]);
-  const hid=CARDS.filter(c=>c.r==='H'&&!have.has(c.id));
+  const cnt=state.cardCount||(state.cardCount={});
+  const owned=id=>(cnt[id]||0)>0;
+  // 未所持は重み3倍。重複も出るが新規が出やすい
+  const W={N:6,R:3,SR:1,H:0};
+  const build=arr=>{
+    let tot=0; const w=arr.map(c=>{const v=(W[c.r]||1)*(owned(c.id)?1:3); tot+=v; return v;});
+    return {arr,w,tot};
+  };
+  const draw=pool=>{
+    const {arr,w,tot}=build(pool);
+    let x=Math.random()*tot;
+    for(let i=0;i<arr.length;i++){x-=w[i];if(x<=0)return arr[i];}
+    return arr[arr.length-1];
+  };
+  const give=(c,isHidden)=>{
+    cnt[c.id]=(cnt[c.id]||0)+1;
+    if(!state.cards.includes(c.id))state.cards.push(c.id);
+    save();
+    const dup=cnt[c.id]>1;
+    const msg=isHidden
+      ? '🔮 隠し図鑑を発見！ '+c.e+' '+c.n+(dup?'（重複 ×'+cnt[c.id]+'）':'')
+      : '🔮 隠し図鑑を発見！ '+c.e+' '+c.n+(dup?'（重複 ×'+cnt[c.id]+'）':(c.r==='SR'?'（超レア！）':c.r==='R'?'（レア）':''));
+    setTimeout(()=>{toast(msg);pop(dup?6:20);},1400);
+  };
+  const hid=CARDS.filter(c=>c.r==='H');
+  const newHid=hid.filter(c=>!owned(c.id));
   if(hid.length&&Math.random()<0.04){
-    const pick=hid[Math.floor(Math.random()*hid.length)];
-    state.cards.push(pick.id);save();
-    setTimeout(()=>{toast('🔮 隠し図鑑を発見！ '+pick.e+' '+pick.n);pop(20);},1400);
+    give(newHid.length?newHid[Math.floor(Math.random()*newHid.length)]
+                      :hid[Math.floor(Math.random()*hid.length)],true);
     return;
   }
-  const pool=CARDS.filter(c=>c.r!=='H'&&!have.has(c.id));
+  const pool=CARDS.filter(c=>c.r!=='H');
   if(!pool.length)return;
-  const W={N:6,R:3,SR:1};
-  let tot=0;pool.forEach(c=>tot+=W[c.r]);
-  let x=Math.random()*tot,pick=pool[0];
-  for(const c of pool){x-=W[c.r];if(x<=0){pick=c;break;}}
-  state.cards.push(pick.id);save();
-  setTimeout(()=>{toast('📖 新種はっけん！ '+pick.e+' '+pick.n+(pick.r==='SR'?'（超レア！）':pick.r==='R'?'（レア）':''));pop(pick.r==='SR'?20:10);},1400);
+  give(draw(pool),false);
 }
 function cardsNormal(){return CARDS.filter(c=>c.r!=='H');}
 let curLv='all';
@@ -746,12 +769,12 @@ function checkAch(){
   const _wk=weak().length;
   if(_wk>state.stat.peakWeak)state.stat.peakWeak=_wk;
   if(state.stat.peakWeak>=10&&_wk===0)unlock('comeback');
-  const _cn=cardsNormal().filter(c=>state.cards.includes(c.id)).length;
+  const _cn=cardsNormal().filter(c=>(state.cardCount||{})[c.id]>0).length;
   if(_cn>=10)unlock('cards10');
   if(_cn>=30)unlock('cards30');
   if(_cn>=50)unlock('cards50');
   if(_cn>=cardsNormal().length)unlock('cardsall');
-  if(CARDS.some(c=>c.r==='H'&&state.cards.includes(c.id)))unlock('secretfind');
+  if(CARDS.some(c=>c.r==='H'&&(state.cardCount||{})[c.id]>0))unlock('secretfind');
   const solved=Object.keys(state.stats).length;
   const lv=lvlInfo(state.xp).level;
   if(state.maxCombo>=5)unlock('combo5');
@@ -782,7 +805,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260830f';
+const APP_VER='20260830g';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -844,7 +867,7 @@ function renderHome(){
         <div style="font-size:10px;color:var(--sub);font-weight:700;text-align:right">${lvlInfo(state.xp).max?'最高到達！ 累計 '+state.xp.toLocaleString()+' XP':'あと '+(lvlInfo(state.xp).need-lvlInfo(state.xp).cur).toLocaleString()+' XP でレベルアップ'}</div>
       </div>
     </div>
-    <button class="btn btn-ghost" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center" onclick="renderZukan()"><span>📖 生物図鑑</span><span style="font-family:Poppins;font-weight:800;color:var(--accent)">${cardsNormal().filter(c=>state.cards.includes(c.id)).length}/${cardsNormal().length}</span></button>
+    <button class="btn btn-ghost" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center" onclick="renderZukan()"><span>📖 生物図鑑</span><span style="font-family:Poppins;font-weight:800;color:var(--accent)">${cardsNormal().filter(c=>(state.cardCount||{})[c.id]>0).length}/${cardsNormal().length}</span></button>
     <div class="statcard" style="display:block;padding:16px 18px">
       <h2 style="font-size:13px;font-weight:900;margin-bottom:10px">📊 難易度べつのきろく</h2>
       ${['easy','std','hard','ibo'].map(k=>{
@@ -884,7 +907,7 @@ function renderHome(){
 function setLv(k){curLv=k;renderHome();}
 function exportProgress(){
   return JSON.stringify({v:1,ver:APP_VER,d:{
-    xp:state.xp,maxCombo:state.maxCombo,ach:state.ach,cards:state.cards,
+    xp:state.xp,maxCombo:state.maxCombo,ach:state.ach,cards:state.cards,cardCount:state.cardCount,
     stats:state.stats,best:state.best,streak:state.streak,taBest:state.taBest,
     cardMile:state.cardMile}});
 }
@@ -953,19 +976,19 @@ function renderTitles(){
     <button class="btn btn-ghost" style="margin-top:10px" onclick="renderHome()">ホームに戻る</button>`;
 }
 function renderZukan(){
-  const have=new Set(state.cards);
+  const have=new Set(CARDS.filter(c=>(state.cardCount||{})[c.id]>0).map(c=>c.id));
   const norm=cardsNormal();
   const got=norm.filter(c=>have.has(c.id)).length;
   const sec=(r,label)=>{
     const cs=CARDS.filter(c=>c.r===r);
     return `<div class="label">${label}（${cs.filter(c=>have.has(c.id)).length}/${cs.length}）</div>`+
       cs.map(c=>have.has(c.id)
-        ?`<div class="zkr got"><span class="zke">${c.e}</span><div class="zkb"><div class="zkn">${c.n} <span class="zktag ${c.r}">${c.r==='SR'?'超レア':c.r==='R'?'レア':'ふつう'}</span></div><div class="zkd">${c.d}</div></div></div>`
+        ?`<div class="zkr got"><span class="zke">${c.e}</span><div class="zkb"><div class="zkn">${c.n}${(state.cardCount&&state.cardCount[c.id]>1)?` <span class="dupn">×${state.cardCount[c.id]}</span>`:''} <span class="zktag ${c.r}">${c.r==='SR'?'超レア':c.r==='R'?'レア':'ふつう'}</span></div><div class="zkd">${c.d}</div></div></div>`
         :`<div class="zkr"><span class="zke">🔒</span><div class="zkb"><div class="zkn" style="color:var(--sub)">？？？</div><div class="zkd">レベルアップ・実績・正解数の節目で手に入る</div></div></div>`).join('');
   };
-  const hid=CARDS.filter(c=>c.r==='H'&&have.has(c.id));
+  const hid=CARDS.filter(c=>c.r==='H'&&(state.cardCount||{})[c.id]>0);
   const hidSec=hid.length?`<div class="label">🔮 隠し図鑑（${hid.length}）</div>`+
-    hid.map(c=>`<div class="zkr got" style="border-color:#7B8BFF"><span class="zke">${c.e}</span><div class="zkb"><div class="zkn">${c.n} <span class="zktag H">隠し</span></div><div class="zkd">${c.d}</div></div></div>`).join(''):'';
+    hid.map(c=>`<div class="zkr got" style="border-color:#7B8BFF"><span class="zke">${c.e}</span><div class="zkb"><div class="zkn">${c.n}${(state.cardCount&&state.cardCount[c.id]>1)?` <span class="dupn">×${state.cardCount[c.id]}</span>`:''} <span class="zktag H">隠し</span></div><div class="zkd">${c.d}</div></div></div>`).join(''):'';
   screen.innerHTML=`
     <button class="back" onclick="renderHome()">‹ もどる</button>
     <div class="qhead"><h2>📖 生物図鑑</h2><span class="combo" style="color:var(--accent)">${got}/${norm.length} 発見</span></div>
