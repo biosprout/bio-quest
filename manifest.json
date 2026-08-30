@@ -1,0 +1,17 @@
+{
+  "name": "BIO QUEST 生物知識チェック",
+  "short_name": "BIO QUEST",
+  "description": "高校生物から国際生物学オリンピック水準まで、329問の生物クイズ。全問解説つき。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E1A17",
+  "theme_color": "#2ED598",
+  "lang": "ja",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
