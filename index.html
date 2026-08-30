@@ -674,8 +674,17 @@ const ACH=[
  {id:'cards30',name:'分類学者',desc:'図鑑を30種あつめる'},
  {id:'cards50',name:'博物学者',desc:'図鑑を50種あつめる'},
  {id:'cardsall',name:'生命の記録者',desc:'図鑑をコンプリート'},
+];
+const ACH_SECRET=[
+ {id:'nightowl',name:'夜行性',desc:'深夜0時〜4時に学習した'},
+ {id:'earlybird',name:'朝型',desc:'早朝5時〜7時に学習した'},
+ {id:'marathon',name:'持久力',desc:'1日に50問回答した'},
+ {id:'allfield',name:'全分野制覇',desc:'8分野すべてで学習した'},
+ {id:'comeback',name:'恒常性の回復',desc:'苦手を10問ためてから0にした'},
  {id:'secretfind',name:'未知との遭遇',desc:'隠し図鑑を手に入れた'},
 ];
+function achAll(){return ACH.concat(ACH_SECRET);}
+function isSecret(id){return ACH_SECRET.some(a=>a.id===id);}
 const MAXLV=25;
 function xpNeed(l){return 60*l+4*l*l;}
 function lvlInfo(xp){
@@ -707,8 +716,8 @@ function addXp(n){
 function unlock(id){
   if(state.ach.includes(id))return;
   state.ach.push(id);save();
-  const a=ACH.find(x=>x.id===id);
-  setTimeout(()=>toast('🏅 実績解除: '+(a?a.name:id)),700);
+  const a=achAll().find(x=>x.id===id);
+  setTimeout(()=>toast((isSecret(id)?'🕵️ 隠し実績を発見: ':'🏅 実績解除: ')+(a?a.name:id)),700);
   grantCard();
 }
 function iboCorrect(){let n=0;Q.forEach(q=>{if(q.lv==='ibo'&&state.stats[q.id])n+=state.stats[q.id].c;});return n;}
@@ -720,7 +729,23 @@ function checkCardMilestone(){
   while(state.cardMile<due){state.cardMile++;grantCard();}
   save();
 }
+if(!state.stat)state.stat={day:'',dayQ:0,fields:[],peakWeak:0};
+function bumpQ(){
+  const t=todayStr();
+  if(state.stat.day!==t){state.stat.day=t;state.stat.dayQ=0;}
+  state.stat.dayQ++;
+  const h=new Date().getHours();
+  if(h<5)unlock('nightowl'); else if(h<8)unlock('earlybird');
+  if(state.stat.dayQ>=50)unlock('marathon');
+  save();
+}
 function checkAch(){
+  if(!state.stat)state.stat={day:'',dayQ:0,fields:[],peakWeak:0};
+  if(!state.stat.fields)state.stat.fields=[];
+  if(state.stat.fields.length>=8)unlock('allfield');
+  const _wk=weak().length;
+  if(_wk>state.stat.peakWeak)state.stat.peakWeak=_wk;
+  if(state.stat.peakWeak>=10&&_wk===0)unlock('comeback');
   const _cn=cardsNormal().filter(c=>state.cards.includes(c.id)).length;
   if(_cn>=10)unlock('cards10');
   if(_cn>=30)unlock('cards30');
@@ -757,7 +782,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260830e';
+const APP_VER='20260830f';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -841,11 +866,14 @@ function renderHome(){
     ${wk?`<button class="btn btn-ghost" style="margin-bottom:10px" onclick="startQuiz('weak')">🔁 苦手だけ復習（${wk}問）</button>`:''}
     <div class="label">🧫 分野べつ</div>
     <div class="fields">${fs}</div>
-    <div class="label">🏅 実績（${state.ach.length}/${ACH.length}）</div>
+    <div class="label">🏅 実績（${ACH.filter(a=>state.ach.includes(a.id)).length}/${ACH.length}）</div>
     <div class="ach-grid">
       ${ACH.map(a=>{const got=state.ach.includes(a.id);
         return `<div class="achb ${got?'got':''}"><div class="an">${got?'🏅':'🔒'} ${a.name}</div><div class="ad">${a.desc}</div></div>`;}).join('')}
     </div>
+    ${(()=>{const f=ACH_SECRET.filter(a=>state.ach.includes(a.id));
+      return f.length?`<div class="label">🕵️ 隠し実績（${f.length}）</div><div class="ach-grid">${
+        f.map(a=>`<div class="achb got" style="border-color:#7B8BFF"><div class="an">🕵️ ${a.name}</div><div class="ad">${a.desc}</div></div>`).join('')}</div>`:'';})()}
     <p class="help">難易度を選ぶと、分野べつ・ミックスの出題がそのレベルにしぼられるよ。XPは難しい問題ほど多くもらえる（IBO級は1問20XP）。</p>
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn btn-ghost" style="flex:1;font-size:12px;padding:11px" onclick="checkUpdate(false)">🔄 更新を確認</button>
@@ -986,6 +1014,9 @@ function answer(k){
   document.querySelectorAll('.choice').forEach(b=>{const kk=+b.dataset.k;
     if(kk===q.a)b.classList.add('correct');else if(kk===k)b.classList.add('wrong');else b.classList.add('dim');b.onclick=null;});
   const st=state.stats[q.id]||{c:0,w:0};
+  bumpQ();
+  if(!state.stat.fields)state.stat.fields=[];
+  if(!state.stat.fields.includes(q.f))state.stat.fields.push(q.f);
   if(ok)setTimeout(checkCardMilestone,50);
   if(ok){g.score++;g.combo++;g.maxCombo=Math.max(g.maxCombo,g.combo);
     if(g.combo>state.maxCombo)state.maxCombo=g.combo;
