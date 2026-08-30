@@ -146,6 +146,7 @@
   .zktag.N{background:#25443A;color:#8AA79A}
   .zktag.R{background:#123D31;color:#4FE3AC}
   .zktag.SR{background:#3A2A12;color:var(--accent)}
+  .zktag.H{background:#232C52;color:#9AA8FF}
   .row2{display:flex;gap:10px}
   .row2 .btn{flex:1}
   .help{font-size:11px;color:var(--sub);line-height:1.6;margin-top:8px}
@@ -583,10 +584,65 @@ const CARDS=[
  {id:'deinococcus',r:'SR',e:'☢️',n:'D.ラディオデュランス',d:'ヒト致死量の数千倍の放射線に耐える細菌。ゲノムを再組立てして復活'},
  {id:'luca',r:'SR',e:'🌋',n:'LUCA',d:'全生物の共通祖先。深海熱水噴出孔で生まれたという説が有力'},
  {id:'hela',r:'SR',e:'🧫',n:'HeLa細胞',d:'1951年から培養され続ける不死の細胞株。現代生物学の陰の主役'},
+
+ {id:'axolotl_regen',r:'N',e:'🦎',n:'再生と幹細胞',d:'イモリは水晶体を切除しても再生できる。分化した細胞が脱分化して幹細胞に戻る、脊椎動物では珍しい能力'},
+ {id:'tardigrade_dna',r:'N',e:'🧫',n:'乾眠',d:'クマムシは体内の水をトレハロースなどに置き換えて代謝をほぼ止める。この状態を乾眠といい、真空や高線量にも耐える'},
+ {id:'honeybee_sex',r:'N',e:'🐝',n:'ハチの性決定',d:'ミツバチは受精卵からメス、未受精卵からオスが生まれる。オスには父親がおらず、染色体は母由来のみ'},
+ {id:'seahorse',r:'N',e:'🐴',n:'タツノオトシゴ',d:'オスの育児のうで卵が育つ。栄養も供給されるため、動物界では数少ない「オスの妊娠」に近い例'},
+ {id:'octopus_brain',r:'N',e:'🐙',n:'タコの分散神経系',d:'ニューロンの約3分の2が腕にあり、腕がある程度独立して判断する。中枢集中型とは異なる知性のかたち'},
+ {id:'jellyfish_nerve',r:'N',e:'🎐',n:'散在神経系',d:'クラゲやヒドラは網目状の神経をもち、中枢がない。刺激は全方向に伝わる'},
+ {id:'euglena',r:'N',e:'🌱',n:'ミドリムシの両面性',d:'葉緑体で光合成をしつつ鞭毛で泳ぎ有機物も取り込む。植物と動物の境界を揺さぶる存在'},
+ {id:'lichen',r:'N',e:'🪨',n:'地衣類',d:'菌類と藻類の共生体。厳しい環境にも定着でき、遷移の初期に現れる先駆種となる'},
+ {id:'mycorrhiza',r:'N',e:'🍄',n:'菌根',d:'植物の根と菌類の共生。菌が水とリンを供給し、植物が光合成産物を渡す。陸上植物の上陸を支えたと考えられている'},
+ {id:'nitrogen_fix',r:'N',e:'🫘',n:'根粒菌',d:'マメ科の根で窒素を固定する。大気の窒素を植物が使える形に変える働きで、輪作が有効なのはこのため'},
+ {id:'cactus_cam',r:'N',e:'🌵',n:'CAM植物',d:'夜に気孔を開いて二酸化炭素を固定し、昼は閉じて光合成する。乾燥地で水を失わない工夫'},
+ {id:'c4',r:'N',e:'🌽',n:'C4植物',d:'トウモロコシやサトウキビ。二酸化炭素を濃縮する仕組みをもち、高温でも光呼吸の損失が小さい'},
+ {id:'venus',r:'N',e:'🪤',n:'ハエトリグサ',d:'感覚毛に短時間で2回触れると閉じる。1回だけでは閉じないため、雨粒などの誤作動を防いでいる'},
+ {id:'sequoia',r:'N',e:'🌲',n:'水を100m運ぶ',d:'高木の頂上まで水が届くのは、蒸散による引き上げと水分子の凝集力による。ポンプなしで100m近く持ち上げている'},
+ {id:'circadian',r:'N',e:'🕰',n:'体内時計',d:'約24時間の周期を刻む時計遺伝子が発見され、2017年にノーベル賞の対象となった'},
+ {id:'blood_type',r:'N',e:'🩸',n:'ABO式血液型',d:'赤血球表面の糖鎖の違い。A型とB型が共顕性、O型は潜性という共顕性の代表例'},
+ {id:'crispr',r:'R',e:'✂️',n:'CRISPR-Cas9',d:'もとは細菌がウイルスに対抗する免疫の仕組み。それを転用したゲノム編集技術で2020年にノーベル賞'},
+ {id:'telomere',r:'R',e:'🧬',n:'テロメア',d:'染色体末端の反復配列。分裂のたびに短くなり、限界に達すると分裂が止まる（ヘイフリック限界）'},
+ {id:'apoptosis',r:'R',e:'🍂',n:'アポトーシス',d:'計画された細胞死。指の間の細胞が死ぬことで指が分かれる。線虫の研究から解明された'},
+ {id:'mitochondria_eve',r:'R',e:'👩',n:'ミトコンドリアDNA',d:'母親からのみ受け継がれるため、母系の系統をたどれる。人類の共通祖先の推定にも使われた'},
+ {id:'endosymbiosis',r:'R',e:'🔗',n:'細胞内共生説',d:'ミトコンドリアと葉緑体はかつて独立した細菌だったとする説。独自のDNAと二重膜がその証拠とされる'},
+ {id:'prion',r:'R',e:'🌀',n:'プリオン',d:'核酸を持たずタンパク質のみで感染性を示す。正常なタンパク質の立体構造を異常型に変えて広がる'},
+ {id:'hox',r:'R',e:'📐',n:'ホメオティック遺伝子',d:'体の前後軸に沿って器官の配置を決める。染色体上の並び順と体の位置が対応するという驚くべき性質をもつ'},
+ {id:'antibody',r:'R',e:'🎯',n:'抗体の多様性',d:'遺伝子の断片を組み替えることで、限られた遺伝子から膨大な種類の抗体を作る。利根川進がこれを解明した'},
+ {id:'quorum',r:'R',e:'💡',n:'クオラムセンシング',d:'細菌が仲間の密度を化学物質で感知し、一定数を超えると一斉に行動を変える。発光やバイオフィルム形成の引き金になる'},
+ {id:'horizontal',r:'R',e:'↔️',n:'遺伝子の水平伝播',d:'親から子ではなく個体間で遺伝子が移る現象。細菌の薬剤耐性が急速に広がる原因のひとつ'},
+ {id:'extremophile',r:'R',e:'🌋',n:'超好熱菌',d:'100℃を超える熱水噴出孔で生きる古細菌がいる。PCRに使うDNAポリメラーゼもこうした菌に由来する'},
+ {id:'plant_talk',r:'R',e:'📡',n:'植物の警報',d:'食害を受けた植物が揮発性物質を放出し、周囲の個体が防御物質を準備し始めることが知られている'},
+ {id:'nobel_ips',r:'SR',e:'🏅',n:'iPS細胞',d:'山中伸弥が4因子で体細胞を初期化できることを示した。分化は不可逆という常識を覆した'},
+ {id:'nobel_tonegawa',r:'SR',e:'🎖',n:'利根川進',d:'抗体の多様性が遺伝子の再構成で生まれることを証明し、日本人初の生理学・医学賞を受賞した'},
+ {id:'ohsumi',r:'SR',e:'🔬',n:'オートファジー',d:'大隅良典が酵母を使って仕組みを解明。細胞が自らの成分を分解して再利用する現象で、2016年にノーベル賞'},
+ {id:'honjo',r:'SR',e:'🛡',n:'PD-1',d:'本庶佑が発見した免疫のブレーキ役。これを外す薬ががん免疫療法として実用化された'},
+ {id:'lamprey',r:'SR',e:'🐍',n:'ヤツメウナギ',d:'あごをもたない無顎類。脊椎動物の初期の姿を今に伝え、あごの獲得という大進化を考える手がかりになる'},
+ {id:'wolbachia',r:'SR',e:'🦟',n:'ボルバキア',d:'昆虫の細胞内に共生する細菌。宿主のオスをメス化したり繁殖を操作したりする。蚊の防除にも応用されている'},
+ {id:'dord_bio',r:'H',e:'👻',n:'幻の器官',d:'かつて「痕跡器官」とされた虫垂は、現在では腸内細菌の隠れ家として役割をもつ可能性が指摘されている。役立たずと決めつけない姿勢が科学を進める'},
+ {id:'sleep_dolphin',r:'H',e:'🐬',n:'半球睡眠',d:'イルカは左右の脳を交互に眠らせる。呼吸のために浮上し続ける必要があるための適応で、渡り鳥にも似た仕組みがある'},
+ {id:'seed_bank',r:'H',e:'🌰',n:'2000年後の発芽',d:'イスラエルの遺跡から出土した約2000年前のナツメヤシの種子が発芽した例がある。種子の休眠能力の高さを示す'},
+ {id:'immortal_cell',r:'H',e:'♾',n:'HeLa細胞の重さ',d:'1951年に採取された細胞が今も世界中で増え続けている。これまでに培養された総量は本人の体重をはるかに超えるとされる'},
+ {id:'blue_blood',r:'H',e:'🔵',n:'青い血',d:'カブトガニやイカの血液は銅を含むヘモシアニンで酸素を運ぶため青い。カブトガニの血液は細菌検査に利用されてきた'},
+ {id:'gut_neuron',r:'H',e:'🧠',n:'第二の脳',d:'腸には1億個規模の神経細胞があり、脳から独立して働く。腸内細菌が気分や行動に影響する腸脳相関の研究も進んでいる'},
+
+ {id:'chimera_h',r:'H',e:'🧩',n:'キメラとモザイク',d:'2人分の細胞をもつヒトが実在する。双子の受精卵が融合して生まれるキメラで、親子鑑定が一致しない例も報告されている'},
+ {id:'virus_size_h',r:'H',e:'🦠',n:'巨大ウイルス',d:'ミミウイルスなど、一部の細菌より大きく多くの遺伝子をもつウイルスが発見され、生物と非生物の境界を揺さぶっている'},
+ {id:'planarian_h',r:'H',e:'✂️',n:'プラナリアの記憶',d:'切断しても全身を再生する。頭部を再生した個体が学習内容を保持していたという報告があり、記憶の在り処をめぐる議論を呼んだ'},
+ {id:'naked_mole_h',r:'H',e:'🐀',n:'がんにならないネズミ',d:'ハダカデバネズミはほとんどがんを発症せず、寿命も30年以上。老化研究の重要なモデル動物になっている'},
+ {id:'photosyn_purple_h',r:'H',e:'🟣',n:'紫の地球仮説',d:'初期の生命はクロロフィルではなくレチナールで光を捉え、地球は紫色に見えたかもしれないという説がある'},
+ {id:'cicada_prime_h',r:'H',e:'🦗',n:'素数ゼミ',d:'13年と17年という素数の周期で羽化する。天敵や近縁種と羽化が重なりにくくなるという説明が有力とされる'},
 ];
 function grantCard(){
-  const have=new Set(state.cards);
-  const pool=CARDS.filter(c=>!have.has(c.id));
+  const have=new Set(state.cards||[]);
+  const hid=CARDS.filter(c=>c.r==='H'&&!have.has(c.id));
+  if(hid.length&&Math.random()<0.04){
+    const pick=hid[Math.floor(Math.random()*hid.length)];
+    state.cards.push(pick.id);save();
+    setTimeout(()=>{toast('🔮 隠し図鑑を発見！ '+pick.e+' '+pick.n);pop(20);},1400);
+    return;
+  }
+  const pool=CARDS.filter(c=>c.r!=='H'&&!have.has(c.id));
   if(!pool.length)return;
   const W={N:6,R:3,SR:1};
   let tot=0;pool.forEach(c=>tot+=W[c.r]);
@@ -595,6 +651,7 @@ function grantCard(){
   state.cards.push(pick.id);save();
   setTimeout(()=>{toast('📖 新種はっけん！ '+pick.e+' '+pick.n+(pick.r==='SR'?'（超レア！）':pick.r==='R'?'（レア）':''));pop(pick.r==='SR'?20:10);},1400);
 }
+function cardsNormal(){return CARDS.filter(c=>c.r!=='H');}
 let curLv='all';
 
 const XPLV={easy:8,std:10,hard:14,ibo:20};
@@ -608,10 +665,16 @@ const ACH=[
  {id:'ibo100',name:'IBOマスター',desc:'IBO級で正解100回'},
  {id:'ta15',name:'跳躍伝導',desc:'タイムアタック15問'},
  {id:'ta20',name:'活動電位MAX',desc:'タイムアタック20問'},
+ {id:'ta30',name:'全か無かの法則',desc:'タイムアタック30問'},
  {id:'streak3',name:'概日リズム',desc:'3日連続で学習'},
  {id:'streak7',name:'ホメオスタシス',desc:'7日連続で学習'},
  {id:'lv5',name:'脱皮',desc:'レベル5に到達'},
  {id:'lv10',name:'羽化',desc:'レベル10に到達'},
+ {id:'cards10',name:'採集者',desc:'図鑑を10種あつめる'},
+ {id:'cards30',name:'分類学者',desc:'図鑑を30種あつめる'},
+ {id:'cards50',name:'博物学者',desc:'図鑑を50種あつめる'},
+ {id:'cardsall',name:'生命の記録者',desc:'図鑑をコンプリート'},
+ {id:'secretfind',name:'未知との遭遇',desc:'隠し図鑑を手に入れた'},
 ];
 const MAXLV=25;
 function xpNeed(l){return 60*l+4*l*l;}
@@ -628,14 +691,17 @@ function touchStreak(){
   const ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
   state.streak.count=(state.streak.day===ys)?state.streak.count+1:1;
   state.streak.day=t;save();
-  if(state.streak.count%5===0){toast('🔥 '+state.streak.count+'日連続達成！');grantCard();}
+  if(state.streak.count%7===0){toast('🔥 '+state.streak.count+'日連続達成！');grantCard();}
   else if(state.streak.count>=2)toast('🔥 '+state.streak.count+'日連続！');
   checkAch();
 }
 function addXp(n){
   const before=lvlInfo(state.xp).level;
   state.xp+=n;const after=lvlInfo(state.xp).level;save();
-  if(after>before){pop(20);setTimeout(()=>toast('🎉 Lv.'+after+'！「'+evoTitle(after).n+'」に進化！'),350);grantCard();}
+  if(after>before){
+    pop(20);setTimeout(()=>toast('🎉 Lv.'+after+'！「'+evoTitle(after).n+'」に到達！'),350);
+    if(after%2===0)grantCard();
+  }
   checkAch();
 }
 function unlock(id){
@@ -646,7 +712,21 @@ function unlock(id){
   grantCard();
 }
 function iboCorrect(){let n=0;Q.forEach(q=>{if(q.lv==='ibo'&&state.stats[q.id])n+=state.stats[q.id].c;});return n;}
+function totalCorrect(){let n=0;Object.keys(state.stats).forEach(k=>n+=state.stats[k].c);return n;}
+function checkCardMilestone(){
+  if(!state.cardMile)state.cardMile=0;
+  const marks=[25,60,110,170,240,320,410,510,620,740,870,1010,1160,1320,1490,1670,1860,2060,2270,2490];
+  let due=0; marks.forEach(m=>{if(totalCorrect()>=m)due++;});
+  while(state.cardMile<due){state.cardMile++;grantCard();}
+  save();
+}
 function checkAch(){
+  const _cn=cardsNormal().filter(c=>state.cards.includes(c.id)).length;
+  if(_cn>=10)unlock('cards10');
+  if(_cn>=30)unlock('cards30');
+  if(_cn>=50)unlock('cards50');
+  if(_cn>=cardsNormal().length)unlock('cardsall');
+  if(CARDS.some(c=>c.r==='H'&&state.cards.includes(c.id)))unlock('secretfind');
   const solved=Object.keys(state.stats).length;
   const lv=lvlInfo(state.xp).level;
   if(state.maxCombo>=5)unlock('combo5');
@@ -656,6 +736,7 @@ function checkAch(){
   if(iboCorrect()>=100)unlock('ibo100');
   if(state.taBest>=15)unlock('ta15');
   if(state.taBest>=20)unlock('ta20');
+  if(state.taBest>=30)unlock('ta30');
   if(state.streak.count>=3)unlock('streak3');
   if(state.streak.count>=7)unlock('streak7');
   if(lv>=5)unlock('lv5');
@@ -676,7 +757,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260830c';
+const APP_VER='20260830e';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -738,7 +819,7 @@ function renderHome(){
         <div style="font-size:10px;color:var(--sub);font-weight:700;text-align:right">${lvlInfo(state.xp).max?'最高到達！ 累計 '+state.xp.toLocaleString()+' XP':'あと '+(lvlInfo(state.xp).need-lvlInfo(state.xp).cur).toLocaleString()+' XP でレベルアップ'}</div>
       </div>
     </div>
-    <button class="btn btn-ghost" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center" onclick="renderZukan()"><span>📖 生物図鑑</span><span style="font-family:Poppins;font-weight:800;color:var(--accent)">${state.cards.length}/${CARDS.length}</span></button>
+    <button class="btn btn-ghost" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center" onclick="renderZukan()"><span>📖 生物図鑑</span><span style="font-family:Poppins;font-weight:800;color:var(--accent)">${cardsNormal().filter(c=>state.cards.includes(c.id)).length}/${cardsNormal().length}</span></button>
     <div class="statcard" style="display:block;padding:16px 18px">
       <h2 style="font-size:13px;font-weight:900;margin-bottom:10px">📊 難易度べつのきろく</h2>
       ${['easy','std','hard','ibo'].map(k=>{
@@ -755,7 +836,7 @@ function renderHome(){
     <div class="label">⚔️ チャレンジ</div>
     <div class="row2" style="margin-bottom:10px">
       <button class="btn btn-primary" onclick="startQuiz('all')">🎲 ミックス10問</button>
-      <button class="btn btn-accent" onclick="startQuiz('all',true)">⏱ タイムアタック</button>
+      <button class="btn btn-accent" onclick="startQuiz('all',true)">⏱ タイムアタック（60秒）</button>
     </div>
     ${wk?`<button class="btn btn-ghost" style="margin-bottom:10px" onclick="startQuiz('weak')">🔁 苦手だけ復習（${wk}問）</button>`:''}
     <div class="label">🧫 分野べつ</div>
@@ -845,21 +926,27 @@ function renderTitles(){
 }
 function renderZukan(){
   const have=new Set(state.cards);
+  const norm=cardsNormal();
+  const got=norm.filter(c=>have.has(c.id)).length;
   const sec=(r,label)=>{
     const cs=CARDS.filter(c=>c.r===r);
     return `<div class="label">${label}（${cs.filter(c=>have.has(c.id)).length}/${cs.length}）</div>`+
       cs.map(c=>have.has(c.id)
         ?`<div class="zkr got"><span class="zke">${c.e}</span><div class="zkb"><div class="zkn">${c.n} <span class="zktag ${c.r}">${c.r==='SR'?'超レア':c.r==='R'?'レア':'ふつう'}</span></div><div class="zkd">${c.d}</div></div></div>`
-        :`<div class="zkr"><span class="zke">🔒</span><div class="zkb"><div class="zkn" style="color:var(--sub)">？？？</div><div class="zkd">レベルアップ・実績・連続学習でカードが手に入る</div></div></div>`).join('');
+        :`<div class="zkr"><span class="zke">🔒</span><div class="zkb"><div class="zkn" style="color:var(--sub)">？？？</div><div class="zkd">レベルアップ・実績・正解数の節目で手に入る</div></div></div>`).join('');
   };
+  const hid=CARDS.filter(c=>c.r==='H'&&have.has(c.id));
+  const hidSec=hid.length?`<div class="label">🔮 隠し図鑑（${hid.length}）</div>`+
+    hid.map(c=>`<div class="zkr got" style="border-color:#7B8BFF"><span class="zke">${c.e}</span><div class="zkb"><div class="zkn">${c.n} <span class="zktag H">隠し</span></div><div class="zkd">${c.d}</div></div></div>`).join(''):'';
   screen.innerHTML=`
     <button class="back" onclick="renderHome()">‹ もどる</button>
-    <div class="qhead"><h2>📖 生物図鑑</h2><span class="combo" style="color:var(--accent)">${state.cards.length}/${CARDS.length} 発見</span></div>
-    ${state.cards.length>=CARDS.length?'<div class="statcard" style="justify-content:center"><b style="color:var(--accent)">🏆 全種コンプリート！すごい！</b></div>':''}
+    <div class="qhead"><h2>📖 生物図鑑</h2><span class="combo" style="color:var(--accent)">${got}/${norm.length} 発見</span></div>
+    ${got>=norm.length?'<div class="statcard" style="justify-content:center"><b style="color:var(--accent)">🏆 コンプリート！</b></div>':''}
+    <p class="help" style="margin-bottom:10px">生きものや生命科学にまつわる豆知識を集める図鑑。レベルアップ（2つごと）・実績解除・正解数の節目・7日連続学習で手に入る。</p>
+    ${hidSec}
     ${sec('SR','⭐ 超レア')}
     ${sec('R','🔹 レア')}
-    ${sec('N','・ ふつう')}
-    <p class="help">レベルアップ、実績解除、連続学習5日ごとに、未発見の生物からランダムで1種見つかる。超レアほど出にくい。</p>`;
+    ${sec('N','・ ふつう')}`;
 }
 
 let g={list:[],i:0,score:0,miss:[],answered:false,combo:0,maxCombo:0,ta:false,t:0,timer:null,field:'all'};
@@ -868,15 +955,14 @@ function startQuiz(field,ta){
   if(field==='weak'){list=shuffle(weak());if(!list.length){toast('苦手はまだないよ');return;}list=list.slice(0,10);}
   else{list=pool(field,curLv);
     if(list.length<4){toast('この条件の問題が足りないよ');return;}
-    list=shuffle(list).slice(0,ta?15:10);}
-  g={list,i:0,score:0,miss:[],answered:false,combo:0,maxCombo:0,ta:!!ta,t:ta?20:0,timer:null,field};
+    list=shuffle(list).slice(0,ta?40:10);}
+  g={list,i:0,score:0,miss:[],answered:false,combo:0,maxCombo:0,ta:!!ta,t:ta?60:0,timer:null,field};
   renderQuiz();
 }
 function renderQuiz(){
   if(g.i>=g.list.length)return finish();
   clearInterval(g.timer);
   const q=g.list[g.i];g.answered=false;
-  if(g.ta)g.t=20;
   const opts=shuffle(q.ch.map((c,k)=>({c,k})));
   screen.innerHTML=`
     <button class="back" onclick="quitQuiz()">‹ もどる</button>
@@ -892,7 +978,7 @@ function renderQuiz(){
     <div id="fb"></div>`;
   if(g.ta){g.timer=setInterval(()=>{g.t--;const el=$('tm');
     if(el){el.textContent=g.t;if(g.t<=5)el.classList.add('warn');}
-    if(g.t<=0){clearInterval(g.timer);if(!g.answered)answer(-1);}},1000);}
+    if(g.t<=0){clearInterval(g.timer);g.answered=true;finish();}},1000);}
 }
 function answer(k){
   if(g.answered)return;g.answered=true;clearInterval(g.timer);
@@ -900,6 +986,7 @@ function answer(k){
   document.querySelectorAll('.choice').forEach(b=>{const kk=+b.dataset.k;
     if(kk===q.a)b.classList.add('correct');else if(kk===k)b.classList.add('wrong');else b.classList.add('dim');b.onclick=null;});
   const st=state.stats[q.id]||{c:0,w:0};
+  if(ok)setTimeout(checkCardMilestone,50);
   if(ok){g.score++;g.combo++;g.maxCombo=Math.max(g.maxCombo,g.combo);
     if(g.combo>state.maxCombo)state.maxCombo=g.combo;
     st.c++;
