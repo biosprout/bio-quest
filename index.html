@@ -824,7 +824,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260831a';
+const APP_VER='20260831b';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -1073,7 +1073,11 @@ function buildDaily(){
 }
 function daily(){
   const t=todayStr();
-  if(!state.daily||state.daily.d!==t||state.daily.lv!==curLv){
+  const d0=state.daily;
+  // まだ1問も解いていないときだけ、レベルの変更で作り直す。
+  // 解きはじめたあとにレベルを変えても、その日のぶんの進み具合は残す
+  const started=!!d0&&((d0.ok.length+d0.ng.length)>0||d0.fin);
+  if(!d0||d0.d!==t||(d0.lv!==curLv&&!started)){
     const l=buildDaily();
     if(!l.length)return null;
     state.daily={d:t,lv:curLv,ids:l.map(q=>q.id),ok:[],ng:[],fin:false};
