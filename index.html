@@ -35,6 +35,20 @@
   .brand .logo{font-family:'Poppins';font-weight:800;font-size:23px;letter-spacing:-.5px;color:var(--primary)}
   .brand .logo span{color:var(--accent)}
   .brand .sub{font-size:11px;color:var(--sub);font-weight:500;margin-top:2px}
+
+  .hsec{background:var(--panel2);border:1px solid var(--border);border-radius:16px;padding:16px 18px;margin-bottom:12px}
+  .hsec h3{font-size:14px;font-weight:900;margin-bottom:8px;color:var(--accent)}
+  .hsec p{font-size:12.5px;line-height:1.9;color:var(--text);font-weight:500;margin-bottom:8px}
+  .hsec p:last-child{margin-bottom:0}
+  .hlist{margin:6px 0 8px;padding-left:1.1em}
+  .hlist li{font-size:12.5px;line-height:1.9;color:var(--sub);font-weight:500;margin-bottom:5px}
+  .hlist li b{color:var(--text)}
+
+  .helpbtn{background:var(--panel2);border:1px solid var(--border);border-radius:999px;
+    width:34px;height:34px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:800;color:var(--accent);cursor:pointer;margin-right:8px}
+  .helpbtn:active{transform:scale(.94)}
+  .topbar .right{display:flex;align-items:center}
   .rankpill{background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:800;color:var(--accent)}
   .screen{flex:1;overflow-y:auto;padding:6px 20px 40px;-webkit-overflow-scrolling:touch}
   .statcard{background:var(--panel);border:1px solid var(--border);border-radius:22px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px;display:flex;align-items:center;gap:18px}
@@ -177,7 +191,7 @@
 <div class="app">
   <div class="topbar">
     <div class="brand"><div class="logo">BIO <span>QUEST</span></div><div class="sub">生物知識チェック / 高校〜大学</div></div>
-    <div class="rankpill" id="rankPill">総合 --</div>
+    <button class="helpbtn" onclick="renderHelp()" aria-label="使い方">？</button><div class="rankpill" id="rankPill">総合 --</div>
   </div>
   <div id="updBar" style="display:none;align-items:center;gap:10px;background:var(--accent);color:#1A1400;padding:10px 14px;border-radius:12px;margin:0 0 12px;font-size:13px;font-weight:700">
     <b style="flex:1">新しいバージョンがあります</b>
@@ -652,6 +666,7 @@ const CARDS=[
  {id:'cicada_prime_h',r:'H',e:'🦗',n:'素数ゼミ',d:'13年と17年という素数の周期で羽化する。天敵や近縁種と羽化が重なりにくくなるという説明が有力とされる'},
 ];
 function grantCard(){
+  chime('card');
   const cnt=state.cardCount||(state.cardCount={});
   const owned=id=>(cnt[id]||0)>0;
   // 未所持は重み3倍。重複も出るが新規が出やすい
@@ -747,7 +762,7 @@ function touchStreak(){
 function addXp(n){
   const before=lvlInfo(state.xp).level;
   state.xp+=n;const after=lvlInfo(state.xp).level;save();
-  if(after>before){
+  if(after>before){chime('level');
     pop(20);setTimeout(()=>toast('🎉 Lv.'+after+'！「'+evoTitle(after).n+'」に到達！'),350);
     if(after%2===0)grantCard();
   }
@@ -815,6 +830,46 @@ const screen=$('screen');
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1700)}
+
+/* ===== 効果音 =====
+   節目のときだけ鳴らす。音声ファイルは持たず、その場で合成している。 */
+function soundOn(){ return state.sound!==false; }   // 既定はオン
+let _chimeAt=0;
+function chime(kind){
+  if(!soundOn())return;
+  const now=Date.now();
+  if(now-_chimeAt<450)return;     // レベルアップと図鑑が同時に来たときの二度鳴りを防ぐ
+  _chimeAt=now;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return;
+    if(!window._ac)window._ac=new AC();
+    const ac=window._ac;
+    if(ac.state==='suspended')ac.resume();
+    const seq = kind==='level' ? [[523.25,0],[659.25,.10],[783.99,.20],[1046.50,.30]]
+              : kind==='card'  ? [[880.00,0],[1174.66,.09]]
+              :                  [[659.25,0],[783.99,.10],[1046.50,.20]];
+    const dur = kind==='level'?.42:.30;
+    seq.forEach(function(p){
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.type='sine'; o.frequency.value=p[0];
+      const t=ac.currentTime+p[1];
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.linearRampToValueAtTime(.16,t+.012);
+      g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t+dur+.03);
+    });
+  }catch(e){}
+}
+function toggleSound(){
+  state.sound = !soundOn();
+  save();
+  toast(soundOn()?'🔔 音を鳴らします':'🔕 音を止めました');
+  if(soundOn())chime('card');
+  renderHome();
+}
+
 function pop(n){const p=document.createElement('div');p.className='pop';const e=['⭐','✨','🎉','💫','🧬'];
   for(let i=0;i<(n||8);i++){const s=document.createElement('span');s.textContent=e[i%5];
     s.style.setProperty('--dx',(Math.random()*260-130)+'px');s.style.setProperty('--dy',(-Math.random()*200-40)+'px');p.appendChild(s)}
@@ -824,7 +879,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260831b';
+const APP_VER='20260831c';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -844,6 +899,46 @@ async function checkUpdate(silent){
     if(!silent)toast('最新版です（'+APP_VER+'）');
     return false;
   }catch(e){ if(!silent)toast('確認できませんでした'); return false; }
+}
+function renderHelp(){
+  const sec=(t,body)=>`<div class="hsec"><h3>${t}</h3>${body}</div>`;
+  screen.innerHTML=`
+    <button class="back" onclick="renderHome()">‹ もどる</button>
+    <div class="label" style="font-size:15px;margin-bottom:10px">❓ 使い方ガイド</div>
+    <p class="help" style="margin-bottom:14px">高校生物から大学初級、国際生物学オリンピックの水準まで329問。ぜんぶ解説つきです。</p>
+
+    ${sec('1. 迷ったら「今日の10問」',
+      '<p>ホームのいちばん上にある <b>今日の10問</b> を押すだけで、その日のぶんが始まります。何をやるか選ばなくていいので、まずはここからどうぞ。</p>'+
+      '<ul class="hlist"><li><b>苦手なもの</b> — まちがえてから日が経ったものほど先に出ます</li>'+
+      '<li><b>そろそろ忘れそうなもの</b> — 正解が続いているものほど間隔をあけて出します</li>'+
+      '<li><b>はじめてのもの</b> — 毎日少しずつまぜます</li></ul>'+
+      '<p>何日休んでも「たまった○○問」のような表示は出ません。いつ開いても10問だけです。まちがえたものは、日をおいてまた出てきます。</p>')}
+
+    ${sec('2. 学習のしかた', '<ul class="hlist"><li><b>今日の10問</b> — ホームのいちばん上。苦手・そろそろ忘れそう・はじめての問題を自動でまぜて出します。苦手を多めに配合しています</li><li><b>分野べつ</b> — 分野を選んで解きます</li><li><b>ミックス10問</b> — 全分野から10問</li><li><b>タイムアタック</b> — 60秒で何問解けるか</li><li><b>苦手だけ復習</b> — まちがえた問題だけを集めて出します</li></ul>')}
+
+    ${sec('3. XP・レベル・称号・図鑑',
+      '<p>正解するとXPがたまり、レベルが上がると称号が変わります。レベルアップ・実績の解除・正解数の節目などで、豆知識を集めた<b>図鑑</b>のカードが手に入ります。</p>'+
+      '<p>図鑑には隠しカードもあります。実績は、条件を満たすと自動で解除されます。</p>')}
+
+    ${sec('4. 難易度を選ぶ', `<p>やさしい（高校基礎）・標準（高校発展）・難しい（大学初級）・IBO級（代表選抜水準）から選べます。</p><p>「今日の10問」は、始める前に難易度を変えると作り直されます。解きはじめたあとに変えても、その日の進み具合は残ります。</p>`)}
+
+    ${sec('5. 音を止めたいとき',
+      '<p>その日のぶんを終えたとき、レベルが上がったとき、図鑑を手に入れたときに短い音が鳴ります。ホームのいちばん下にある <b>🔔 音あり</b> を押すと止まります。もう一度押すと戻ります。</p>'+
+      '<p>学校や電車の中で使うときは、先に切っておくと安心です。</p>')}
+
+    ${sec('6. 記録について',
+      '<p>学習の記録はこの端末の中だけに保存されます。どこかへ送られることはありません。そのかわり、ブラウザの履歴やデータを消すと記録も消えます。</p>'+
+      '<p>機種を変えるときや、記録を残しておきたいときは、ホームのいちばん下にある <b>💾 記録の保存</b> から書き出しておいてください。別の端末で読みこめば続きから使えます。</p>')}
+
+    ${sec('7. 困ったとき',
+      '<ul class="hlist">'+
+      '<li><b>新しくしたい</b> — ホームの下にある「🔄 更新を確認」を押します</li>'+
+      '<li><b>電波がないところで使いたい</b> — 一度開いておけば、次からはオフラインでも動きます</li>'+
+      '<li><b>ホーム画面に置きたい</b> — ブラウザの共有ボタンから「ホーム画面に追加」を選びます</li>'+
+      '</ul>')}
+
+    <p class="help" style="text-align:center;margin-top:14px">バージョン ${APP_VER}</p>`;
+  window.scrollTo(0,0);
 }
 function renderHome(){
   const ids=Object.keys(state.stats);
@@ -919,7 +1014,7 @@ function renderHome(){
         f.map(a=>`<div class="achb got" style="border-color:#7B8BFF"><div class="an">🕵️ ${a.name}</div><div class="ad">${a.desc}</div></div>`).join('')}</div>`:'';})()}
     <p class="help">難易度を選ぶと、分野べつ・ミックスの出題がそのレベルにしぼられるよ。XPは難しい問題ほど多くもらえる（IBO級は1問20XP）。</p>
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn btn-ghost" style="flex:1;font-size:12px;padding:11px" onclick="checkUpdate(false)">🔄 更新を確認</button>
+      <button class="btn btn-ghost" style="flex:1;font-size:12px;padding:11px" onclick="toggleSound()">${soundOn()?'🔔 音あり':'🔕 音なし'}</button><button class="btn btn-ghost" style="flex:1;font-size:12px;padding:11px" onclick="checkUpdate(false)">🔄 更新を確認</button>
       <button class="btn btn-ghost" style="flex:1;font-size:12px;padding:11px" onclick="renderBackup()">💾 進捗の保存</button>
     </div>
     <p class="help" style="text-align:center;margin-top:8px;opacity:.6">バージョン ${APP_VER}</p>`;
@@ -1125,7 +1220,7 @@ function finishDaily(){
   clearInterval(g.timer);
   const d=state.daily,total=g.list.length,rate=Math.round(g.score/total*100),rk=rankOf(rate);
   const alldone=!!d&&(d.ok.length+d.ng.length)>=d.ids.length;
-  if(alldone&&d&&!d.fin){ d.fin=true; state.dailyDone=(state.dailyDone||0)+1; save(); }
+  if(alldone&&d&&!d.fin){ d.fin=true; state.dailyDone=(state.dailyDone||0)+1; save(); chime('daily'); }
   unlock('first');
   if(total>=DAILY_N&&g.score===total)unlock('perfect');
   checkAch();
