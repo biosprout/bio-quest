@@ -834,18 +834,40 @@ function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');cle
 /* ===== 効果音 =====
    節目のときだけ鳴らす。音声ファイルは持たず、その場で合成している。 */
 function soundOn(){ return state.sound!==false; }   // 既定はオン
+/* iPhone は画面を触った瞬間でないと音を出す準備ができない。
+   最初のタップで無音を1回鳴らして解除し、以後は節目でも鳴らせるようにする。 */
+let _acReady=false;
+function _audio(){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return null;
+    if(!window._ac)window._ac=new AC();
+    const ac=window._ac;
+    if(ac.state==='suspended')ac.resume();
+    return ac;
+  }catch(e){ return null; }
+}
+function unlockAudio(){
+  const ac=_audio();
+  if(!ac||_acReady)return;
+  try{
+    const b=ac.createBuffer(1,1,22050), s=ac.createBufferSource();
+    s.buffer=b; s.connect(ac.destination); s.start(0);
+    _acReady=true;
+  }catch(e){}
+}
+['touchend','pointerdown','click','keydown'].forEach(function(ev){
+  document.addEventListener(ev, unlockAudio, {passive:true});
+});
 let _chimeAt=0;
 function chime(kind){
   if(!soundOn())return;
   const now=Date.now();
   if(now-_chimeAt<450)return;     // レベルアップと図鑑が同時に来たときの二度鳴りを防ぐ
   _chimeAt=now;
+  const ac=_audio();
+  if(!ac)return;
   try{
-    const AC=window.AudioContext||window.webkitAudioContext;
-    if(!AC)return;
-    if(!window._ac)window._ac=new AC();
-    const ac=window._ac;
-    if(ac.state==='suspended')ac.resume();
     const seq = kind==='level' ? [[523.25,0],[659.25,.10],[783.99,.20],[1046.50,.30]]
               : kind==='card'  ? [[880.00,0],[1174.66,.09]]
               :                  [[659.25,0],[783.99,.10],[1046.50,.20]];
@@ -879,7 +901,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260831c';
+const APP_VER='20260831d';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
