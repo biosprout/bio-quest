@@ -44,6 +44,11 @@
   .hlist li{font-size:12.5px;line-height:1.9;color:var(--sub);font-weight:500;margin-bottom:5px}
   .hlist li b{color:var(--text)}
 
+  .bknote{background:var(--panel2);border:1px solid var(--border);border-radius:14px;
+    padding:12px 14px;margin-bottom:14px}
+  .bknote p{font-size:12px;color:var(--sub);font-weight:600;line-height:1.75;margin-bottom:9px}
+  .bknote p b{color:var(--text);font-weight:800;font-size:12.5px}
+
   .helpbtn{background:var(--panel2);border:1px solid var(--border);border-radius:999px;
     width:34px;height:34px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
     font-size:15px;font-weight:800;color:var(--accent);cursor:pointer;margin-right:8px}
@@ -901,7 +906,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260831d';
+const APP_VER='20260831f';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -986,6 +991,7 @@ function renderHome(){
   const wk=weak().length;
   screen.innerHTML=`
     ${dailyCard()}
+    ${backupNote()}
     <div class="statcard">
       <div class="ring"><svg width="92" height="92">
         <circle cx="46" cy="46" r="40" fill="none" stroke="var(--border)" stroke-width="9"/>
@@ -1051,7 +1057,7 @@ function exportProgress(){
 function copyProgress(){
   const t=exportProgress();
   if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(t).then(()=>toast('コピーしました ✓')).catch(()=>selCopy());
+    navigator.clipboard.writeText(t).then(()=>{markBackedUp();toast('コピーしました ✓');}).catch(()=>selCopy());
   }else selCopy();
 }
 function selCopy(){
@@ -1060,6 +1066,72 @@ function selCopy(){
   try{ document.execCommand('copy'); toast('コピーしました ✓'); }catch(e){ toast('長押しして手動でコピーしてください'); }
   el.setAttribute('readonly','');
 }
+/* ===== 記録をファイルでやりとりする ===== */
+/* ===== 記録の保存をうながす =====
+   端末の中だけに記録があるので、ブラウザのデータを消すと消えてしまう。
+   しばらく保存していない人にだけ、静かに知らせる。押しつけない。 */
+const BK_EVERY=30, BK_SNOOZE=7, BK_MIN_XP=500;
+function bkDue(){
+  if((state.xp|0)<BK_MIN_XP)return false;          // 失うものが小さいうちは出さない
+  const t=dayNum();
+  if(state.bkAt==null){ state.bkAt=t; save(); return false; }   // 初回はここから数えはじめる
+  if(state.bkSnooze && t<state.bkSnooze)return false;
+  return t-state.bkAt>=BK_EVERY;
+}
+function backupNote(){
+  if(!bkDue())return '';
+  const d=dayNum()-state.bkAt;
+  return `<div class="bknote">
+      <p><b>記録を保存しておきませんか</b><br>
+      ${d}日ぶんの記録が、この端末の中だけにあります。ブラウザのデータを消すと、いっしょに消えてしまいます。</p>
+      <div class="row2">
+        <button class="btn btn-primary" style="font-size:12px;padding:9px" onclick="goBackup()">💾 保存する</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:9px" onclick="bkLater()">あとで</button>
+      </div>
+    </div>`;
+}
+function goBackup(){ renderBackup(); }
+function bkLater(){ state.bkSnooze=dayNum()+BK_SNOOZE; save(); toast('また'+BK_SNOOZE+'日後にお知らせします'); renderHome(); }
+function markBackedUp(){ state.bkAt=dayNum(); state.bkSnooze=0; save(); }
+
+function backupFileName(){
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  return 'bio-'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'.json';
+}
+async function saveToFile(){
+  const text=exportProgress(), name=backupFileName();
+  try{
+    if(window.File&&navigator.canShare){
+      const f=new File([text],name,{type:'application/json'});
+      if(navigator.canShare({files:[f]})){ await navigator.share({files:[f],title:name}); markBackedUp(); return; }
+    }
+  }catch(e){ if(e&&e.name==='AbortError')return; }
+  try{
+    const b=new Blob([text],{type:'application/json;charset=utf-8'});
+    const u=URL.createObjectURL(b), a=document.createElement('a');
+    a.href=u; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); },1000);
+    markBackedUp();toast('ファイルに保存しました ✓');
+  }catch(e){ toast('保存できませんでした。コピーをお使いください'); }
+}
+function loadFromFile(){
+  const i=document.createElement('input');
+  i.type='file'; i.accept='application/json,.json,.txt';
+  i.onchange=function(){
+    const f=i.files&&i.files[0]; if(!f)return;
+    const r=new FileReader();
+    r.onload=function(){
+      const el=document.getElementById('impText');
+      if(!el){ toast('読み込む画面をひらいてから選んでください'); return; }
+      el.value=String(r.result||'');
+      importProgress();
+    };
+    r.onerror=function(){ toast('ファイルを読めませんでした'); };
+    r.readAsText(f);
+  };
+  i.click();
+}
+
 function importProgress(){
   const raw=(document.getElementById('impText')||{}).value||'';
   if(!raw.trim()){toast('貼り付けてから読み込んでください');return;}
@@ -1082,12 +1154,12 @@ function renderBackup(){
     <div class="statcard" style="display:block;padding:16px">
       <div style="font-size:12px;color:var(--sub);font-weight:700;margin-bottom:8px">いまの記録（${solved}問 / Lv.${lvlInfo(state.xp).level} / ${state.xp.toLocaleString()} XP）</div>
       <textarea id="bkText" readonly style="width:100%;min-height:110px;font-size:11px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px">${exportProgress()}</textarea>
-      <button class="btn btn-primary" style="margin-top:10px" onclick="copyProgress()">📋 コピーする</button>
+      <div class="row2" style="margin-top:10px"><button class="btn btn-primary" style="font-size:12.5px" onclick="saveToFile()">💾 ファイルに保存</button><button class="btn btn-ghost" style="font-size:12.5px" onclick="copyProgress()">📋 コピー</button></div>
     </div>
-    <p class="help" style="margin:14px 0 8px">▼ 別の端末やアイコンで復元する場合は、上でコピーした内容をここに貼り付けます。</p>
+    <p class="help" style="margin:14px 0 8px">▼ 別の端末やアイコンで復元するときは、保存したファイルを選ぶか、コピーした内容を貼り付けます。</p>
     <div class="statcard" style="display:block;padding:16px">
       <textarea id="impText" placeholder="ここに貼り付け" style="width:100%;min-height:90px;font-size:11px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px"></textarea>
-      <button class="btn btn-ghost" style="margin-top:10px" onclick="importProgress()">読み込む</button>
+      <div class="row2" style="margin-top:10px"><button class="btn btn-primary" style="font-size:12.5px" onclick="loadFromFile()">📂 ファイルを選ぶ</button><button class="btn btn-ghost" style="font-size:12.5px" onclick="importProgress()">📋 貼り付け</button></div>
     </div>
     <p class="help" style="margin-top:10px">読み込むと、いまの記録は置きかえられます。</p>`;
 }
