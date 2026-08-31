@@ -47,6 +47,19 @@
   .stinfo .row{display:flex;gap:16px}
   .stinfo .row div{font-size:11px;color:var(--sub);font-weight:600}
   .stinfo .row b{display:block;font-family:'Poppins';font-size:19px;color:var(--text);font-weight:700}
+  .daily{display:flex;align-items:center;gap:13px;border-radius:20px;padding:15px 17px;margin-bottom:16px;cursor:pointer;
+    background:linear-gradient(135deg,var(--primary-dark) 0%,var(--primary) 100%);color:#08201A;box-shadow:0 6px 20px rgba(0,0,0,.13);transition:.15s}
+  .daily:active{transform:scale(.985)}
+  .daily.done{background:linear-gradient(135deg,#E0A21F 0%,#FFC24B 100%);color:#2A1D00}
+  .daily .dic{width:42px;height:42px;border-radius:13px;background:rgba(255,255,255,.2);
+    display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto}
+  .daily .dbd{flex:1;min-width:0}
+  .daily .dbd h3{font-size:16px;font-weight:900;letter-spacing:.2px;line-height:1.3}
+  .daily .dbd p{font-size:11px;font-weight:600;opacity:.88;margin-top:3px;line-height:1.45}
+  .daily .dbar{height:5px;border-radius:99px;background:rgba(255,255,255,.3);margin-top:8px;overflow:hidden}
+  .daily .dbar i{display:block;height:100%;background:currentColor;border-radius:99px}
+  .daily .dgo{font-size:12px;font-weight:800;background:rgba(255,255,255,.22);
+    padding:8px 12px;border-radius:999px;flex:0 0 auto;white-space:nowrap}
   .label{font-size:12px;font-weight:800;color:var(--sub);margin:10px 2px 10px;letter-spacing:.3px}
   .lvrow{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:6px}
   .lvbtn{background:var(--panel);border:1.5px solid var(--border);border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;transition:.15s}
@@ -705,6 +718,8 @@ const ACH_SECRET=[
  {id:'allfield',name:'全分野制覇',desc:'8分野すべてで学習した'},
  {id:'comeback',name:'恒常性の回復',desc:'苦手を10問ためてから0にした'},
  {id:'secretfind',name:'未知との遭遇',desc:'隠し図鑑を手に入れた'},
+ {id:'daily7',name:'日課',desc:'今日の10問を7回やりきった'},
+ {id:'daily30',name:'習慣化',desc:'今日の10問を30回やりきった'},
 ];
 function achAll(){return ACH.concat(ACH_SECRET);}
 function isSecret(id){return ACH_SECRET.some(a=>a.id===id);}
@@ -717,6 +732,8 @@ function lvlInfo(xp){
   return{level:l,cur:xp-acc,need};
 }
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+// 端末のローカル時刻での通し日数。「何日ぶりか」の判定に使う
+function dayNum(t){const d=t||new Date();return Math.floor((d.getTime()-d.getTimezoneOffset()*6e4)/864e5);}
 function touchStreak(){
   const t=todayStr();if(state.streak.day===t)return;
   const y=new Date(Date.now()-864e5);
@@ -777,6 +794,8 @@ function checkAch(){
   if(CARDS.some(c=>c.r==='H'&&(state.cardCount||{})[c.id]>0))unlock('secretfind');
   const solved=Object.keys(state.stats).length;
   const lv=lvlInfo(state.xp).level;
+  if((state.dailyDone||0)>=7)unlock('daily7');
+  if((state.dailyDone||0)>=30)unlock('daily30');
   if(state.maxCombo>=5)unlock('combo5');
   if(state.maxCombo>=10)unlock('combo10');
   if(solved>=100)unlock('solve100');
@@ -805,7 +824,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260830i';
+const APP_VER='20260831a';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -849,6 +868,7 @@ function renderHome(){
   }).join('');
   const wk=weak().length;
   screen.innerHTML=`
+    ${dailyCard()}
     <div class="statcard">
       <div class="ring"><svg width="92" height="92">
         <circle cx="46" cy="46" r="40" fill="none" stroke="var(--border)" stroke-width="9"/>
@@ -1001,6 +1021,132 @@ function renderZukan(){
 }
 
 let g={list:[],i:0,score:0,miss:[],answered:false,combo:0,maxCombo:0,ta:false,t:0,timer:null,field:'all'};
+/* ===================== 今日の10問 =====================
+   苦手 → そろそろ忘れそうな問題 → まだ解いていない問題、の順に優先度をつけて
+   毎日10問だけ選ぶ。たまった数は表に出さない。                        */
+const DAILY_N=10, DAILY_WEAK_MAX=5, DAILY_NEW_MAX=3, DAILY_NEW_MIN=2;
+function isNewQ(q){ return !state.stats[q.id]; }
+function isWeakQ(q){ const s=state.stats[q.id]; return !!(s&&s.w>0&&s.c<=s.w); }
+function ivlOfQ(q){ const s=state.stats[q.id]||{c:0,w:0};
+  const k=Math.max(0,Math.min(5,(s.c|0)-(s.w|0)*2)); return [1,2,4,8,16,32][k]; }
+function dailyScore(q,today){
+  const s=state.stats[q.id];
+  let sc;
+  if(!s) sc=40;                                              // まだ解いていない
+  else{
+    const el=s.d?today-s.d:60;                               // 何日ぶりか
+    if(isWeakQ(q)) sc=100+Math.min(s.wd?today-s.wd:el,30)*2; // 苦手。まちがえてから日が経つほど上げる
+    else{ const due=el-ivlOfQ(q); sc=due>=0?60+Math.min(due,30):15+due; }
+  }
+  if(s&&s.d===today) sc-=1000;                               // 今日もう解いた問題は最後に回す
+  return sc+Math.random()*6;
+}
+function buildDaily(){
+  const all=pool('all',curLv);
+  if(all.length<4)return [];
+  const today=dayNum();
+  const sc=all.map(q=>({q:q,s:dailyScore(q,today)})).sort((a,b)=>b.s-a.s);
+  const pick=[],used=new Set();
+  let nw=0,nn=0;
+  for(const it of sc){                                       // 苦手と新規に上限をつけて配合する
+    if(pick.length>=DAILY_N)break;
+    if(isWeakQ(it.q)){ if(nw>=DAILY_WEAK_MAX)continue; nw++; }
+    else if(isNewQ(it.q)){ if(nn>=DAILY_NEW_MAX)continue; nn++; }
+    pick.push(it.q);used.add(it.q.id);
+  }
+  for(const it of sc){                                       // 足りなければ上限を外して補充
+    if(pick.length>=DAILY_N)break;
+    if(!used.has(it.q.id)){pick.push(it.q);used.add(it.q.id);}
+  }
+  let now=pick.filter(isNewQ).length;                        // 新しい問題を最低でも数問は入れる
+  if(now<DAILY_NEW_MIN){
+    for(const it of sc){
+      if(now>=DAILY_NEW_MIN)break;
+      if(used.has(it.q.id)||!isNewQ(it.q))continue;
+      let k=-1;
+      for(let j=pick.length-1;j>=0;j--){ if(!isWeakQ(pick[j])&&!isNewQ(pick[j])){k=j;break;} }
+      if(k<0)break;
+      used.delete(pick[k].id); pick[k]=it.q; used.add(it.q.id); now++;
+    }
+  }
+  return shuffle(pick).slice(0,DAILY_N);
+}
+function daily(){
+  const t=todayStr();
+  if(!state.daily||state.daily.d!==t||state.daily.lv!==curLv){
+    const l=buildDaily();
+    if(!l.length)return null;
+    state.daily={d:t,lv:curLv,ids:l.map(q=>q.id),ok:[],ng:[],fin:false};
+    save();
+  }
+  return state.daily;
+}
+function dailyQs(){
+  const d=state.daily; if(!d)return [];
+  const m=new Map(Q.map(q=>[q.id,q]));
+  return d.ids.map(i=>m.get(i)).filter(Boolean);
+}
+function dailyCard(){
+  const d=daily(); if(!d)return '';
+  const tot=d.ids.length,done=d.ok.length+d.ng.length,fin=d.fin||done>=tot;
+  let sub,go;
+  if(fin){ sub='おわり！ '+d.ok.length+'/'+done+' 正解'; go='もう一度'; }
+  else if(done>0){ sub='あと '+(tot-done)+' 問'; go='つづき'; }
+  else { sub='苦手と新しい問題をまぜてあるよ'; go='はじめる'; }
+  return `<div class="daily${fin?' done':''}" onclick="startDaily()">
+      <div class="dic">${fin?'🎉':'☀️'}</div>
+      <div class="dbd"><h3>今日の${DAILY_N}問</h3><p>${sub}</p>${
+        (done>0&&!fin)?`<div class="dbar"><i style="width:${Math.round(done/tot*100)}%"></i></div>`:''}</div>
+      <div class="dgo">${go} ›</div>
+    </div>`;
+}
+function startDaily(){
+  const d=daily();
+  if(!d){toast('問題がまだ足りないよ');return;}
+  const done=new Set(d.ok.concat(d.ng));
+  let list=dailyQs().filter(q=>!done.has(q.id));
+  if(!list.length)list=dailyQs();            // やり終わっていたら同じ10問でもう一周（記録は据え置き）
+  if(!list.length){toast('問題がまだ足りないよ');return;}
+  clearInterval(g.timer);
+  g={list:list,i:0,score:0,miss:[],answered:false,combo:0,maxCombo:0,ta:false,t:0,timer:null,field:'daily',daily:true};
+  renderQuiz();
+}
+function retryDailyMiss(){
+  const list=g.miss.slice();
+  if(!list.length){renderHome();return;}
+  g={list:list,i:0,score:0,miss:[],answered:false,combo:0,maxCombo:0,ta:false,t:0,timer:null,field:'daily',daily:true};
+  renderQuiz();
+}
+function finishDaily(){
+  clearInterval(g.timer);
+  const d=state.daily,total=g.list.length,rate=Math.round(g.score/total*100),rk=rankOf(rate);
+  const alldone=!!d&&(d.ok.length+d.ng.length)>=d.ids.length;
+  if(alldone&&d&&!d.fin){ d.fin=true; state.dailyDone=(state.dailyDone||0)+1; save(); }
+  unlock('first');
+  if(total>=DAILY_N&&g.score===total)unlock('perfect');
+  checkAch();
+  const msg=rate===100?'全問正解！かんぺき':rate>=80?'いい調子！':rate>=50?'ここが伸びしろ':'今日のぶん、やりきったね';
+  const miss=g.miss.length?`<div class="label" style="margin-top:4px">まちがえた問題（明日また出るよ）</div>
+    <div class="misslist">${g.miss.map(q=>`<div class="r"><div class="q">${esc(q.q)}</div><div class="a">正解: ${esc(q.ch[q.a])}</div></div>`).join('')}</div>`:'';
+  screen.innerHTML=`
+    <button class="back" onclick="renderHome()">‹ もどる</button>
+    <div class="result">
+      <div class="rank">${rk}</div>
+      <div class="big">${g.score}<span style="font-size:22px;color:var(--sub)">/${total}</span></div>
+      <h2>${msg}</h2>
+      <p>${alldone?'今日のぶんは完了':'あと '+Math.max(0,d.ids.length-(d.ok.length+d.ng.length))+' 問'}${
+        state.streak.count>=2?' ／ 🔥'+state.streak.count+'日連続':''}</p>
+    </div>
+    ${miss}
+    <p class="help" style="text-align:center;margin:10px 0 0">明日はまた新しい${DAILY_N}問が出るよ</p>
+    <div class="row2" style="margin-top:10px">
+      <button class="btn btn-ghost" onclick="renderHome()">ホーム</button>
+      ${g.miss.length?`<button class="btn btn-primary" onclick="retryDailyMiss()">まちがえた ${g.miss.length} 問をもう一度</button>`
+                     :`<button class="btn btn-primary" onclick="startDaily()">もう一度</button>`}
+    </div>`;
+  if(rate>=85)setTimeout(()=>pop(18),200);
+}
+
 function startQuiz(field,ta){
   let list;
   if(field==='weak'){list=shuffle(weak());if(!list.length){toast('苦手はまだないよ');return;}list=list.slice(0,10);}
@@ -1047,6 +1193,9 @@ function answer(k){
     addXp(XPLV[q.lv]+(g.combo>=5?10:g.combo>=3?5:0));touchStreak();
     pop(g.combo>=3?14:8);}
   else{g.combo=0;g.miss.push(q);st.w++;}
+  st.d=dayNum(); if(!ok)st.wd=st.d;
+  if(g.daily&&state.daily&&!state.daily.ok.includes(q.id)&&!state.daily.ng.includes(q.id))
+    (ok?state.daily.ok:state.daily.ng).push(q.id);
   state.stats[q.id]=st;save();
   const head=k===-1?'⏰ 時間切れ':(ok?'⭕ 正解':'❌ 不正解');
   $('fb').innerHTML=`<div class="exp"><b>${head}</b>　${esc(q.ex)}</div>
@@ -1056,6 +1205,7 @@ function answer(k){
 function next(){g.i++;renderQuiz();}
 function quitQuiz(){clearInterval(g.timer);renderHome();}
 function finish(){
+  if(g.daily)return finishDaily();
   clearInterval(g.timer);
   const total=g.list.length,rate=Math.round(g.score/total*100),rk=rankOf(rate);
   const key=(g.field||'all')+'_'+curLv+(g.ta?'_ta':'');
