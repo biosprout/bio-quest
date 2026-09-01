@@ -906,7 +906,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260831f';
+const APP_VER='20260831g';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -951,7 +951,7 @@ function renderHelp(){
 
     ${sec('5. 音を止めたいとき',
       '<p>その日のぶんを終えたとき、レベルが上がったとき、図鑑を手に入れたときに短い音が鳴ります。ホームのいちばん下にある <b>🔔 音あり</b> を押すと止まります。もう一度押すと戻ります。</p>'+
-      '<p>学校や電車の中で使うときは、先に切っておくと安心です。</p>')}
+      '<p>学校や電車の中で使うときは、先に切っておくと安心です。</p>'+'<p><b>iPhone・iPad で音が鳴らないとき</b><br>本体のマナーモード（横のスイッチ）が入っていると、スピーカーからは鳴りません。イヤホンをつなぐか、マナーモードを解除してください。Android やパソコンでは、この影響はありません。</p>')}
 
     ${sec('6. 記録について',
       '<p>学習の記録はこの端末の中だけに保存されます。どこかへ送られることはありません。そのかわり、ブラウザの履歴やデータを消すと記録も消えます。</p>'+
