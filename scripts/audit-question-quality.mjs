@@ -113,13 +113,28 @@ function main() {
   const root = repoRoot();
   let items, sourceLabel, meta;
 
+  let beforeItems = null;   // correction batch のときだけ、修正前の同じ問題群
   if (args.batch) {
     const batch = JSON.parse(fs.readFileSync(path.resolve(args.batch), 'utf8'));
-    items = Array.isArray(batch.items) ? batch.items
-      : (batch.changes || []).flatMap(c => c.items || []);
-    if (!items.length) throw new Error('batch に items がありません');
-    sourceLabel = batch.batch_id || path.basename(args.batch);
-    meta = { kind: 'batch', batch_id: batch.batch_id };
+    if (Array.isArray(batch.updates) && batch.updates.length) {
+      // correction batch: 現行データに set を当てた「修正後」を対象にする
+      const currentById = new Map(extractQuestions(readIndexHtml(root)).map(q => [q.id, q]));
+      beforeItems = [];
+      items = batch.updates.map(u => {
+        const cur = currentById.get(u.id);
+        if (!cur) throw new Error(`batch の id が現行データにありません: ${u.id}`);
+        beforeItems.push(cur);
+        return { ...cur, ...(u.set || {}) };
+      });
+      sourceLabel = `${batch.batch_id || path.basename(args.batch)} (correction 適用後)`;
+      meta = { kind: 'correction_batch', batch_id: batch.batch_id, updates: batch.updates.length };
+    } else {
+      items = Array.isArray(batch.items) ? batch.items
+        : (batch.changes || []).flatMap(c => c.items || []);
+      if (!items.length) throw new Error('batch に items も updates もありません');
+      sourceLabel = batch.batch_id || path.basename(args.batch);
+      meta = { kind: 'batch', batch_id: batch.batch_id };
+    }
   } else {
     const html = readIndexHtml(root);
     items = extractQuestions(html);
@@ -161,6 +176,18 @@ function main() {
     const g = byField.get(f); if (!g) continue;
     const st = groupStats(g);
     console.log(`    ${f.padEnd(6)}${pad(st.n, 5)}${pad(st.correctLongest, 7)} (${(st.correctLongest / st.n * 100).toFixed(1)}%)${pad(st.strong, 7)}`);
+  }
+
+  if (beforeItems) {
+    const b = summarise(beforeItems, 'before');
+    const line = (t, x) => `    ${t.padEnd(22)}${pad(x.correctLongest, 5)}${pad(x.uniqueLongest, 8)}${pad(x.longStat.expected.toFixed(2), 9)}${pad(fx(x.longStat.z), 8)}${pad(x.strong, 9)}${pad(x.correctShortest, 9)}`;
+    console.log();
+    console.log('  [修正前後の比較]  正答が単独最長 / 単独最長あり / 期待 / z / strong / 正答が単独最短');
+    console.log(line('修正前', b));
+    console.log(line('修正後', s));
+    const bex = b.rows.filter(r => r.e.flags.length).length;
+    const aex = s.rows.filter(r => r.e.flags.length).length;
+    console.log(`    ${'解説 flag ありの問題'.padEnd(18)}${pad(bex, 5)} -> ${aex}`);
   }
 
   const exFlagCounts = {};
