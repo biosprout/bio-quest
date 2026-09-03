@@ -11,7 +11,7 @@ import path from 'node:path';
 import {
   CHOICE_COUNT, FIELD_PREFIX, LEVEL_LETTER, QUESTION_KEYS,
   extractAppVer, extractFields, extractLevels, extractQuestions,
-  gitInfo, jstIso, nextIds, readIndexHtml, repoRoot, tallyQuestions
+  gitInfo, itemSha256, jstIso, nextIds, readIndexHtml, repoRoot, tallyQuestions
 } from './lib/questions.mjs';
 
 function parseArgs(argv) {
@@ -55,6 +55,9 @@ function main() {
     levels: Object.entries(levels).map(([id, v]) => ({ id, name: v.n, note: v.d, id_letter: LEVEL_LETTER[id] || null })),
     counts: { total: tally.total, by_field: tally.byField, by_level: tally.byLevel, by_field_level: tally.byFieldLevel },
     next_id: nextIds(questions, fields, levels),
+    // correction batch の expected_item_sha256 に使う。id,f,lv,q,ch,a,ex を既定順で
+    // JSON.stringify した文字列の sha256（scripts/lib/questions.mjs の itemSha256）
+    item_sha256: Object.fromEntries(questions.map(item => [item.id, itemSha256(item)])),
     items: questions
   };
 

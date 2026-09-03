@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 export const QUESTION_KEYS = Object.freeze(['id', 'f', 'lv', 'q', 'ch', 'a', 'ex']);
@@ -82,6 +83,15 @@ export function extractAppVer(html) {
   const m = html.match(/\nconst APP_VER='([^']+)';/);
   if (!m) throw new Error("index.html に \"const APP_VER='...'\" が見つかりません");
   return m[1];
+}
+
+// correction batch 用の item hash。
+// id,f,lv,q,ch,a,ex を CONTENT_SPEC の既定順に並べた object を JSON.stringify して sha256 を取る。
+// つむぎは snapshot の questions.json に入っている item_sha256 をそのまま使えばよい。
+export function itemSha256(item) {
+  const canonical = {};
+  for (const key of QUESTION_KEYS) canonical[key] = item[key];
+  return crypto.createHash('sha256').update(JSON.stringify(canonical), 'utf8').digest('hex');
 }
 
 // 重複判定用の正規化（全角半角・空白の揺れを吸収する）
@@ -165,6 +175,30 @@ export function syncTotalCount(text, pattern, total) {
   const before = Number(m[2]);
   if (before === total) return { text, updated: false, found: true, before };
   return { text: text.replace(pattern.re, `$1${total}$3`), updated: true, found: true, before };
+}
+
+// 選択肢長の手がかり分析。audit と correction importer で同じしきい値を使う。
+export const STRONG_DIFF = 4;
+export const STRONG_RATIO = 1.20;
+
+export function choiceStats(item) {
+  const glen = s => [...String(s)].length;
+  const lens = item.ch.map(glen);
+  const max = Math.max(...lens);
+  const min = Math.min(...lens);
+  const uniqueLongest = lens.filter(l => l === max).length === 1;
+  const uniqueShortest = lens.filter(l => l === min).length === 1;
+  const correct = lens[item.a];
+  const others = lens.filter((_, i) => i !== item.a);
+  const secondHigh = Math.max(...others);
+  const secondLow = Math.min(...others);
+  const rank = lens.filter(l => l > correct).length + 1;
+  const isLongest = uniqueLongest && correct === max;
+  const isShortest = uniqueShortest && correct === min;
+  const diff = correct - secondHigh;
+  const ratio = secondHigh > 0 ? correct / secondHigh : null;
+  const strong = isLongest && (diff >= STRONG_DIFF || (ratio !== null && ratio >= STRONG_RATIO));
+  return { lens, correct, rank, uniqueLongest, uniqueShortest, isLongest, isShortest, secondHigh, secondLow, diff, ratio, strong };
 }
 
 export function tallyQuestions(items, fields, levels) {
