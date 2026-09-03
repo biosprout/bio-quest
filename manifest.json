@@ -1,7 +1,7 @@
 {
   "name": "BIO QUEST 生物知識チェック",
   "short_name": "BIO QUEST",
-  "description": "高校生物から国際生物学オリンピック水準まで、376問の生物クイズ。全問解説つき。",
+  "description": "高校生物から国際生物学オリンピック水準まで、416問の生物クイズ。全問解説つき。",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
