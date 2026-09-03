@@ -803,14 +803,26 @@ const ACH=[
  {id:'combo5',name:'連鎖反応',desc:'5コンボ達成'},
  {id:'combo10',name:'ポリメラーゼ',desc:'10コンボ達成'},
  {id:'perfect',name:'完全変態',desc:'10問クイズで全問正解'},
+ {id:'repair1',name:'DNA修復',desc:'まちがえた問題を正解した'},
+ {id:'repair20',name:'再生能力',desc:'まちがえた20問を正解済みにする'},
  {id:'solve100',name:'先駆種',desc:'100問に挑戦'},
- {id:'solveall',name:'全ゲノム解読',desc:'全問題に挑戦'},
+ {id:'solveall',name:'全問挑戦者',desc:'全問題に挑戦'},
+ {id:'unique100',name:'ゲノム注釈者',desc:'異なる100問で正解'},
+ {id:'unique300',name:'生命百科',desc:'異なる300問で正解'},
+ {id:'correct_all',name:'完全ゲノム解読',desc:'全問題で一度以上正解'},
+ {id:'field8',name:'生命圏踏破',desc:'8分野すべてで3問以上正解'},
+ {id:'field8_10',name:'適応放散',desc:'8分野すべてで10問以上正解'},
+ {id:'level4',name:'四界制覇',desc:'すべての難易度で正解'},
  {id:'ibo100',name:'IBOマスター',desc:'IBO級で正解100回'},
+ {id:'ibo50unique',name:'代表候補',desc:'異なるIBO級50問で正解'},
+ {id:'ibo8fields',name:'国際標準',desc:'8分野すべてでIBO級を5問以上正解'},
+ {id:'ibo_perfect',name:'選抜モード',desc:'IBO級だけの10問クイズで全問正解'},
  {id:'ta15',name:'跳躍伝導',desc:'タイムアタック15問'},
  {id:'ta20',name:'活動電位MAX',desc:'タイムアタック20問'},
  {id:'ta30',name:'全か無かの法則',desc:'タイムアタック30問'},
  {id:'streak3',name:'概日リズム',desc:'3日連続で学習'},
  {id:'streak7',name:'ホメオスタシス',desc:'7日連続で学習'},
+ {id:'streak14',name:'季節応答',desc:'14日連続で学習'},
  {id:'lv5',name:'脱皮',desc:'レベル5に到達'},
  {id:'lv10',name:'羽化',desc:'レベル10に到達'},
  {id:'cards10',name:'採集者',desc:'図鑑を10種あつめる'},
@@ -860,14 +872,38 @@ function addXp(n){
   }
   checkAch();
 }
+let _achToastAt=0;
 function unlock(id){
   if(state.ach.includes(id))return;
   state.ach.push(id);save();
   const a=achAll().find(x=>x.id===id);
-  setTimeout(()=>toast((isSecret(id)?'🕵️ 隠し実績を発見: ':'🏅 実績解除: ')+(a?a.name:id)),700);
+  // 一度に複数解除されることがあるので、トーストが上書きし合わないよう順番に出す
+  const now=Date.now(), at=Math.max(_achToastAt,now+700);
+  _achToastAt=at+1900;
+  setTimeout(()=>toast((isSecret(id)?'🕵️ 隠し実績を発見: ':'🏅 実績解除: ')+(a?a.name:id)),at-now);
   grantCard();
 }
 function iboCorrect(){let n=0;Q.forEach(q=>{if(q.lv==='ibo'&&state.stats[q.id])n+=state.stats[q.id].c;});return n;}
+// 「正解したことのある異なる問題」の集計。実績判定に使う。
+// state.stats[id] = {c:正解数, w:誤答数}。c>0 なら一度は正解している。
+function correctStats(){
+  const st=state.stats||{};
+  const byF={},byLv={},iboByF={};
+  FIELDS.forEach(([f])=>{byF[f]=0;iboByF[f]=0;});
+  Object.keys(LV).forEach(l=>{byLv[l]=0;});
+  let uniq=0,ibo=0,repaired=0;
+  Q.forEach(q=>{
+    const r=st[q.id]; if(!r)return;
+    if(r.w>0&&r.c>0)repaired++;          // まちがえたことがあり、かつ正解もしている
+    if(!(r.c>0))return;
+    uniq++;
+    if(byF[q.f]!==undefined)byF[q.f]++;
+    if(byLv[q.lv]!==undefined)byLv[q.lv]++;
+    if(q.lv==='ibo'){ibo++;if(iboByF[q.f]!==undefined)iboByF[q.f]++;}
+  });
+  return {uniq,ibo,repaired,byF,byLv,iboByF};
+}
+function allFieldsAtLeast(map,n){return FIELDS.every(([f])=>(map[f]||0)>=n);}
 function totalCorrect(){let n=0;Object.keys(state.stats).forEach(k=>n+=state.stats[k].c);return n;}
 function checkCardMilestone(){
   if(!state.cardMile)state.cardMile=0;
@@ -913,6 +949,18 @@ function checkAch(){
   if(state.taBest>=30)unlock('ta30');
   if(state.streak.count>=3)unlock('streak3');
   if(state.streak.count>=7)unlock('streak7');
+  if(state.streak.count>=14)unlock('streak14');
+  const cs=correctStats();
+  if(cs.repaired>=1)unlock('repair1');
+  if(cs.repaired>=20)unlock('repair20');
+  if(cs.uniq>=100)unlock('unique100');
+  if(cs.uniq>=300)unlock('unique300');
+  if(cs.uniq>=Q.length)unlock('correct_all');
+  if(allFieldsAtLeast(cs.byF,3))unlock('field8');
+  if(allFieldsAtLeast(cs.byF,10))unlock('field8_10');
+  if(Object.keys(LV).every(l=>cs.byLv[l]>0))unlock('level4');
+  if(cs.ibo>=50)unlock('ibo50unique');
+  if(allFieldsAtLeast(cs.iboByF,5))unlock('ibo8fields');
   if(lv>=5)unlock('lv5');
   if(lv>=10)unlock('lv10');
 }
@@ -993,7 +1041,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260903d';
+const APP_VER='20260903e';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -1404,6 +1452,7 @@ function finishDaily(){
   if(alldone&&d&&!d.fin){ d.fin=true; state.dailyDone=(state.dailyDone||0)+1; save(); chime('daily'); }
   unlock('first');
   if(total>=DAILY_N&&g.score===total)unlock('perfect');
+  if(total>=10&&g.score===total&&g.list.every(q=>q.lv==='ibo'))unlock('ibo_perfect');
   checkAch();
   const msg=rate===100?'全問正解！かんぺき':rate>=80?'いい調子！':rate>=50?'ここが伸びしろ':'今日のぶん、やりきったね';
   const miss=g.miss.length?`<div class="label" style="margin-top:4px">まちがえた問題（明日また出るよ）</div>
@@ -1494,6 +1543,7 @@ function finish(){
   unlock('first');
   if(g.ta&&g.score>state.taBest){state.taBest=g.score;save();}
   if(!g.ta&&total>=10&&g.score===total)unlock('perfect');
+  if(!g.ta&&total>=10&&g.score===total&&g.list.every(q=>q.lv==='ibo'))unlock('ibo_perfect');
   checkAch();
   const msg={S:'完璧！文句なし',A:'すばらしい理解度',B:'いい調子、あと少し',C:'解説を読んで固めよう',D:'まずは易しめから'}[rk];
   const miss=g.miss.length?`<div class="label" style="margin-top:4px">まちがえた問題</div>
