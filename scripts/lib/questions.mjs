@@ -157,8 +157,8 @@ export function nextAppVer(current, now = new Date()) {
   if (!m || m[1] !== today || !m[2]) return `${today}a`;
   const suffix = m[2];
   const last = suffix[suffix.length - 1];
-  if (last !== 'z') return suffix.slice(0, -1) + String.fromCharCode(last.charCodeAt(0) + 1);
-  return `${suffix}a`;
+  if (last !== 'z') return `${today}${suffix.slice(0, -1)}${String.fromCharCode(last.charCodeAt(0) + 1)}`;
+  return `${today}${suffix}a`;
 }
 
 export function setAppVer(html, version) {
