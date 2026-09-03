@@ -252,3 +252,154 @@ Google Drive `biosprout-content/05_current_snapshot/bio-quest/`
 
 `status` が `ready` でない、または marker が無いときは snapshot を使わない（更新途中）。
 snapshot を直接編集しない。
+
+---
+
+# 既存問題の修正（correction）
+
+追記（append）とは別の経路。ID と智穂子の学習履歴を保ったまま、既存問題の中身だけを差し替える。
+
+## 12. 何を変えられるか
+
+| field | 変更 |
+|---|---|
+| `q` `ch` `a` `ex` | 変更できる |
+| `id` | **不可**。`localStorage` の学習履歴の key であり、公開済み ID は再利用しない |
+| `f` `lv` | **不可**。分野やレベルを動かすときは別途 migration を設計する |
+
+- `set` に書かなかった field は現状維持。
+- 問題数は変わらない。
+- 取込ツールは `reasons` や hash を `index.html` に書き込まない。
+- 修正後も §8 の validation 条件をすべて満たす必要がある（選択肢 4 個、`a` の範囲、
+  問題文の完全一致禁止、分野×レベルが 0 件にならない、など）。
+
+## 13. `expected_item_sha256`
+
+対象 item を取り違えないための指紋。
+
+`id, f, lv, q, ch, a, ex` をこの順に並べた object を `JSON.stringify` して、その UTF-8 文字列の
+SHA-256 を hex で取る（`scripts/lib/questions.mjs` の `itemSha256`）。
+
+つむぎは自分で計算せず、snapshot の `questions.json` にある `item_sha256` の値をそのまま使えばよい。
+
+- 1 件でも hash が一致しないと、その item だけ飛ばすのではなく **batch 全体を中止**し、
+  ID・期待値・実際の値を表示する。
+- `source.commit` が repo の HEAD と違っていても、対象 item の hash が全件一致すれば取り込める
+  （問題データに関係のない commit が挟まっているだけのため）。
+- 書き込み直前にもう一度、現在のファイルから hash を取り直して確認する。
+
+## 14. correction batch の形式
+
+置き場所は追加 batch と同じ `20_ready/<batch_id>.json`。`purpose` は `quality_correction`。
+
+```json
+{
+  "schema_version": 1,
+  "batch_id": "2026-09-04_bio-quest_correction_001",
+  "status": "ready",
+  "subject": "bio-quest",
+  "purpose": "quality_correction",
+  "generated_at": "2026-09-04T15:00:00+09:00",
+  "generated_by": "tsumugi",
+  "source": {
+    "repo": "biosprout/bio-quest",
+    "branch": "main",
+    "commit": "snapshot marker の commit",
+    "content_spec": "CONTENT_SPEC.md",
+    "snapshot_captured_at": "snapshot marker の captured_at",
+    "counts": { "total": 416 }
+  },
+  "expected_count_before": 416,
+  "updates": [
+    {
+      "id": "v_i20",
+      "expected_item_sha256": "questions.json の item_sha256 の値",
+      "set": { "ch": ["...", "...", "...", "..."], "a": 0, "ex": "..." },
+      "reasons": ["choice_length_cue", "explanation_accuracy"]
+    }
+  ],
+  "qa": {
+    "schema_checked": true,
+    "id_and_hash_checked": true,
+    "single_correct_answer_checked": true,
+    "choice_parallelism_checked": true,
+    "choice_length_cue_checked": true,
+    "explanation_checked": true,
+    "factual_accuracy_checked": true,
+    "level_appropriateness_checked": true,
+    "notes": []
+  }
+}
+```
+
+`items` と `updates` は同じ batch に混ぜない。追加 batch は `items`、修正 batch は `updates`。
+どちらのツールも取り違えを拒否する。
+
+## 15. 取込
+
+```bash
+cd /Users/yucci/Documents/apps/bio-quest
+node scripts/import-question-corrections.mjs <batch.json>            # dry run（既定）
+node scripts/import-question-corrections.mjs <batch.json> --apply    # 適用
+node scripts/import-question-corrections.mjs <batch.json> --report <out.md>
+```
+
+dry run は ID ごとに、問題文・選択肢・正答文字列・解説の before / after、選択肢長 `[l0,l1,l2,l3]`、
+正答の長さ順位、単独最長・単独最短、2 位との差と比、変更した field を出す。
+
+適用時は該当行だけを差し替え（他の行は 1 文字も触らない）、`APP_VER` を更新し、validator を実行する。
+validator が失敗したら `index.html` と `manifest.json` を byte 単位で元へ戻す。
+
+## 16. 選択肢の品質基準
+
+`node scripts/audit-question-quality.mjs` が機械的に測るのは長さだけで、内容の判断はつむぎが行う。
+
+- 長さは Unicode コードポイント数で測る。
+- 「正答が単独最長」は 4 択のうち正答だけが最大長のもの。
+- ランダム期待は **単独最長が存在する問題数 ÷ 4**。同長 tie の問題では単独最長が存在しないので、
+  総問題数の 25% を期待値にしない。
+- strong flag は、正答が単独最長かつ、2 位より 4 文字以上長い、または 1.20 倍以上長いもの。
+
+flag はレビューの優先順位づけにだけ使う。機械的に文字数を揃えたり、自動で書き換えたりしない。
+
+つむぎが確認すること:
+
+- 4 択の文法形式が並列である。
+- 情報粒度と限定条件が同程度である。
+- 正答だけに理由・括弧書き・数値・例外条件が付いていない。
+- 誤答も同じ topic のもっともらしい誤概念である。
+- 長さを合わせるためだけの不自然な冗長化をしない。
+- 正答が常に最長・最短になることは避けるが、個別の問題で自然に長くなることまでは禁じない。
+- 「上記すべて」「1 と 3」「いずれでもない」など表示順に依存する選択肢は禁止（§6 参照）。
+
+## 17. 解説の品質基準
+
+audit が review queue に入れるもの（誤りの断定ではない）:
+
+| flag | 意味 |
+|---|---|
+| `short_explanation` | 30 文字未満 |
+| `restates_answer_only` | 正答の言い換えに近く、理由や機序の語がない |
+| `absolute_wording` | 必ず / 常に / 完全に / のみ など強い限定語を含む |
+| `numeric_claim` | 数値と単位を含み、事実確認が要る |
+| `scope_generalization_candidate` | 問題文が生物群や条件を限定しているのに、解説に限定語がない |
+
+つむぎの解説基準:
+
+1. まず、なぜ正答なのかを明示する。
+2. 必要に応じて因果機序または計算過程を書く。
+3. 成立する生物群・組織・発生段階・実験条件を限定する。
+4. 重要な誤答が紛らわしいときだけ、なぜ違うかを補足する。
+5. 「主に」「一般に」「多くの場合」を適切に使い、例外のある現象を断定しない。
+6. easy / std は簡潔に、hard / ibo は理解に必要な機序まで書く。
+7. 表面的に長くするのではなく、正確さと学習価値を優先する。
+
+## 18. レビュー台帳
+
+`biosprout-content/00_specs/quality/bio-quest-review-status.json`。app のデータとは分けて管理する
+つむぎの監査台帳で、source of truth ではない。
+
+- `choice_status` / `explanation_status`: `pending` / `verified` / `revised` / `needs_source_check`
+- `reviewed_by` / `reviewed_at` / `notes` は人が書く
+- `item_sha256` / `machine_flags` / `stale_since_review` は `bioquest_review_status.mjs` が更新する
+- レビュー済みの問題が後から修正されると `stale_since_review` が立ち、再確認対象として浮く
