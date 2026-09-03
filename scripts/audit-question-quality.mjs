@@ -21,7 +21,32 @@ import {
 // 解説 audit のしきい値
 const EX_SHORT = 30;
 
+// 強い限定語。「正常に」「非常に」のような部分一致と、「〜常に…とは限らない」のような
+// 否定を伴う正しい用法は誤検出になるため、後段の findAbsolutes で除外する。
 const ABSOLUTE_WORDS = ['必ず', '常に', '完全に', 'のみ', '例外なく', 'すべての', '絶対に', '100%'];
+const ABSOLUTE_PREFIX_EXCLUDE = { '常に': ['正', '非', '通'] };
+const NEGATION_AFTER = ['ない', '限らない', 'わけではない', 'とは言えない', 'とは限ら'];
+
+// 語が「限定を主張している」ときだけ拾う
+function findAbsolutes(text) {
+  const hits = [];
+  for (const word of ABSOLUTE_WORDS) {
+    let from = 0;
+    for (;;) {
+      const at = text.indexOf(word, from);
+      if (at < 0) break;
+      from = at + word.length;
+      const before = at > 0 ? text[at - 1] : '';
+      const excl = ABSOLUTE_PREFIX_EXCLUDE[word];
+      if (excl && excl.includes(before)) continue;                 // 正常に / 非常に / 通常に
+      const tail = text.slice(from, from + 30);
+      if (NEGATION_AFTER.some(n => tail.includes(n))) continue;    // 〜とは限らない
+      hits.push(word);
+      break;
+    }
+  }
+  return hits;
+}
 const HEDGE_WORDS = ['主に', '一般に', '多くの場合', '通常', '典型的', 'ことが多い', '場合が多い', 'おおむね', 'とされる', '傾向がある'];
 const CAUSAL_WORDS = ['ため', 'ので', 'よって', 'により', 'から', '理由', '機構', '機序', '過程', 'ことで', '結果'];
 // 問題文が対象や条件を限定している合図
@@ -59,7 +84,7 @@ function analyseExplanation(item) {
   if (ex.includes(strippedAnswer) && glen(ex) < glen(answer) * 2.5 && !has(ex, CAUSAL_WORDS)) {
     flags.push('restates_answer_only');
   }
-  const absolutes = ABSOLUTE_WORDS.filter(w => ex.includes(w));
+  const absolutes = findAbsolutes(ex);
   if (absolutes.length) flags.push('absolute_wording');
   if (/[0-9]/.test(ex) && /(%|％|個|回|倍|分|秒|時間|日|年|世紀|mol|kJ|mmHg|mL|nm|kDa|℃|pH)/.test(ex)) {
     flags.push('numeric_claim');

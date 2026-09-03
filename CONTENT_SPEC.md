@@ -380,7 +380,7 @@ audit が review queue に入れるもの（誤りの断定ではない）:
 |---|---|
 | `short_explanation` | 30 文字未満 |
 | `restates_answer_only` | 正答の言い換えに近く、理由や機序の語がない |
-| `absolute_wording` | 必ず / 常に / 完全に / のみ など強い限定語を含む |
+| `absolute_wording` | 必ず / 常に / 完全に / のみ など強い限定語を含む。「正常に」「非常に」のような部分一致と、「〜とは限らない」のような否定を伴う用法は除く |
 | `numeric_claim` | 数値と単位を含み、事実確認が要る |
 | `scope_generalization_candidate` | 問題文が生物群や条件を限定しているのに、解説に限定語がない |
 
