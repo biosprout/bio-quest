@@ -1041,7 +1041,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260903i';
+const APP_VER='20260908a';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -1076,7 +1076,7 @@ function renderHelp(){
       '<li><b>はじめてのもの</b> — 毎日少しずつまぜます</li></ul>'+
       '<p>何日休んでも「たまった○○問」のような表示は出ません。いつ開いても10問だけです。まちがえたものは、日をおいてまた出てきます。</p>')}
 
-    ${sec('2. 学習のしかた', '<ul class="hlist"><li><b>今日の10問</b> — ホームのいちばん上。苦手・そろそろ忘れそう・はじめての問題を自動でまぜて出します。苦手を多めに配合しています</li><li><b>分野べつ</b> — 分野を選んで解きます</li><li><b>ミックス10問</b> — 全分野から10問</li><li><b>タイムアタック</b> — 60秒で何問解けるか</li><li><b>苦手だけ復習</b> — まちがえた問題だけを集めて出します</li></ul>')}
+    ${sec('2. 学習のしかた', '<ul class="hlist"><li><b>今日の10問</b> — ホームのいちばん上。はじめての問題と、前に解いた問題の復習を自動でまぜて出します。まちがえた問題は早めにまた出ます</li><li><b>分野べつ</b> — 分野を選んで解きます</li><li><b>ミックス10問</b> — 全分野から10問</li><li><b>タイムアタック</b> — 60秒で何問解けるか</li><li><b>苦手だけ復習</b> — まちがえた問題だけを集めて出します</li></ul>')}
 
     ${sec('3. XP・レベル・称号・図鑑',
       '<p>正解するとXPがたまり、レベルが上がると称号が変わります。レベルアップ・実績の解除・正解数の節目などで、豆知識を集めた<b>図鑑</b>のカードが手に入ります。</p>'+
@@ -1184,10 +1184,10 @@ function renderHome(){
 }
 function setLv(k){curLv=k;renderHome();}
 function exportProgress(){
-  return JSON.stringify({v:1,ver:APP_VER,d:{
+  return JSON.stringify({v:2,ver:APP_VER,d:{
     xp:state.xp,maxCombo:state.maxCombo,ach:state.ach,cards:state.cards,cardCount:state.cardCount,
     stats:state.stats,best:state.best,streak:state.streak,taBest:state.taBest,
-    cardMile:state.cardMile}});
+    cardMile:state.cardMile,dailyDone:state.dailyDone||0,learn:state.learn}});
 }
 function copyProgress(){
   const t=exportProgress();
@@ -1278,6 +1278,8 @@ function importProgress(){
   state.ach=d.ach||[]; state.cards=d.cards||[]; state.stats=d.stats||{};
   state.best=d.best||{}; state.streak=d.streak||{day:'',count:0};
   state.taBest=d.taBest||0; state.cardMile=d.cardMile||0;
+  state.dailyDone=d.dailyDone||0;
+  state.learn=(d.learn&&typeof d.learn==='object')?d.learn:null; ensureLearn();   // 旧形式（learn なし）でも復元できる
   save(); toast('進捗を復元しました ✓'); renderHome();
 }
 function renderBackup(){
@@ -1345,54 +1347,118 @@ function renderZukan(){
 }
 
 let g={list:[],i:0,score:0,miss:[],answered:false,combo:0,maxCombo:0,ta:false,t:0,timer:null,field:'all'};
-/* ===================== 今日の10問 =====================
-   苦手 → そろそろ忘れそうな問題 → まだ解いていない問題、の順に優先度をつけて
-   毎日10問だけ選ぶ。たまった数は表に出さない。                        */
-const DAILY_N=10, DAILY_WEAK_MAX=5, DAILY_NEW_MAX=3, DAILY_NEW_MIN=2;
-function isNewQ(q){ return !state.stats[q.id]; }
-function isWeakQ(q){ const s=state.stats[q.id]; return !!(s&&s.w>0&&s.c<=s.w); }
-function ivlOfQ(q){ const s=state.stats[q.id]||{c:0,w:0};
-  const k=Math.max(0,Math.min(5,(s.c|0)-(s.w|0)*2)); return [1,2,4,8,16,32][k]; }
-function dailyScore(q,today){
-  const s=state.stats[q.id];
-  let sc;
-  if(!s) sc=40;                                              // まだ解いていない
-  else{
-    const el=s.d?today-s.d:60;                               // 何日ぶりか
-    if(isWeakQ(q)) sc=100+Math.min(s.wd?today-s.wd:el,30)*2; // 苦手。まちがえてから日が経つほど上げる
-    else{ const due=el-ivlOfQ(q); sc=due>=0?60+Math.min(due,30):15+due; }
-  }
-  if(s&&s.d===today) sc-=1000;                               // 今日もう解いた問題は最後に回す
-  return sc+Math.random()*6;
+/* ===================== 学習状態（内部管理） =====================
+   問題ごとに「未挑戦 → 挑戦済み → 別の日に再確認 → 定着の目安」を裏側で持ち、
+   次にいつ見直すかを決める。画面には段階も定着率も出さない。
+   実績・図鑑・称号・「クリア」は従来どおり state.stats だけで判定し、ここには依存しない。
+
+   state.learn = { v:1, since:'YYYY-MM-DD', q:{ [id]: L } }
+   L = { s  : 段階 1=挑戦済み 2=別日再確認 3=定着の目安（未挑戦は記録なし）
+         n  : 記録開始後の回答回数
+         cd : 正解した「日」の数（同じ日に何度正解しても1）
+         k  : 復習間隔の段（LEARN.STEPS の添字。-1 = まだ間隔なし／誤答直後）
+         ld : 最後に回答した学習日     lcd: 最後に正解した学習日
+         la : 最後に回答した時刻(ms)   lr : 最後の正誤 1/0
+         due: 次に見直す学習日（null = 予定なし）
+         lp : 記録開始後の誤答回数
+         mig: 1 なら更新前（state.stats）に回答記録があった問題 }
+
+   学習日 = 端末のローカル時刻での暦日（00:00 で切り替わる。dayNum() と同じ定義で、
+   智穂子の端末では JST）。「今日の10問」の日替わり・連続日数と同じ境界。
+
+   旧記録の扱い（移行は遅延方式）:
+     更新前の回答は state.stats に残したまま読み取り専用で参照し、更新後に初めて
+     解いたときに L を作る。過去の日時や「別の日に正解した」事実は捏造しない。
+     したがって旧問題は一斉に「期限超過」にはならず、復習枠が余ったときに
+     「既出の再確認」として少しずつ混ざる。                                  */
+const LEARN={
+  STEPS:[1,3,7,14,30,60], // 別の日に正解するたびに次の段へ。次回までの日数
+  LAPSE_DAYS:1,           // 誤答したら段を戻し、翌日にもう一度
+  STABLE_DAYS:3,          // 定着の目安: 正解した日が3日以上 かつ
+  STABLE_IVL:14,          //             次回間隔が14日以上（= STEPS の 14 に到達）
+};
+function ensureLearn(){
+  if(!state.learn||typeof state.learn!=='object')state.learn={v:1,since:todayStr(),q:{}};
+  if(!state.learn.q||typeof state.learn.q!=='object')state.learn.q={};
+  if(!state.learn.since)state.learn.since=todayStr();
+  if(state.learn.v==null)state.learn.v=1;
 }
+ensureLearn();
+function learnOf(id){ return (state.learn&&state.learn.q&&state.learn.q[id])||null; }
+function learnStageOf(L){
+  if(L.cd>=LEARN.STABLE_DAYS&&L.k>=0&&LEARN.STEPS[L.k]>=LEARN.STABLE_IVL)return 3;
+  if(L.cd>=2)return 2;
+  return 1;
+}
+// 0=未挑戦 1=挑戦済み 2=別日再確認 3=定着の目安。旧記録しかない問題は 1
+function learnStage(q){ const L=learnOf(q.id); if(L)return L.s; return state.stats[q.id]?1:0; }
+// 回答のたびに呼ぶ。1回の回答で1回だけ状態を進める（answer() 側で二重呼び出しを防いでいる）
+function learnRecord(q,ok){
+  ensureLearn();
+  const today=dayNum(), T=state.learn.q;
+  let L=T[q.id];
+  if(!L){ L=T[q.id]={s:1,n:0,cd:0,k:-1,ld:null,lcd:null,la:null,lr:null,due:null,lp:0}; if(state.stats[q.id])L.mig=1; }
+  L.n++; L.la=Date.now(); L.lr=ok?1:0; L.ld=today;
+  if(ok){
+    if(L.lcd!==today){                       // その日はじめての正解だけが段を進める
+      L.cd++; L.lcd=today;
+      L.k=Math.min(L.k+1,LEARN.STEPS.length-1);
+      L.due=today+LEARN.STEPS[L.k];
+    }                                        // 同じ日の2回目以降の正解では何も進めない
+  }else{
+    L.lp++; L.k=-1;                          // 段を戻して翌日に再確認
+    L.due=today+LEARN.LAPSE_DAYS;
+  }
+  L.s=learnStageOf(L);
+  return L;
+}
+// 最後に解いた学習日。新記録がなければ旧記録の d（なければ null）
+function learnLastDay(q){ const L=learnOf(q.id); if(L&&L.ld!=null)return L.ld; const s=state.stats[q.id]; return (s&&s.d!=null)?s.d:null; }
+function learnDue(q){ const L=learnOf(q.id); return (L&&L.due!=null)?L.due:null; }
+// 端末のコンソールから状態を確かめるための集計（画面には出さない）
+function learnSummary(){
+  const today=dayNum(), r={unseen:0,seen:0,review:0,stable:0,dueToday:0,legacyOnly:0,tracked:0};
+  Q.forEach(q=>{
+    const s=learnStage(q); r[['unseen','seen','review','stable'][s]]++;
+    const L=learnOf(q.id); if(L){r.tracked++; if(L.due!=null&&L.due<=today)r.dueToday++;} else if(state.stats[q.id])r.legacyOnly++;
+  });
+  r.since=state.learn&&state.learn.since; return r;
+}
+
+/* ===================== 今日の10問 =====================
+   基本は「未挑戦5問 ＋ 復習5問」。復習どきの問題が多い日は未挑戦を減らして復習を優先する。
+   足りない側は「既出の再確認」で補い、同じセットに同じ問題は入れない。
+   はじめてで未挑戦しかない日は、未挑戦10問でよい。たまった数は表に出さない。 */
+const DAILY_N=10, DAILY_NEW_BASE=5, DAILY_NEW_MIN=2;
+function isNewQ(q){ return !state.stats[q.id]&&!learnOf(q.id); }
+function isWeakQ(q){ const s=state.stats[q.id]; return !!(s&&s.w>0&&s.c<=s.w); }
 function buildDaily(){
   const all=pool('all',curLv);
   if(all.length<4)return [];
   const today=dayNum();
-  const sc=all.map(q=>({q:q,s:dailyScore(q,today)})).sort((a,b)=>b.s-a.s);
-  const pick=[],used=new Set();
-  let nw=0,nn=0;
-  for(const it of sc){                                       // 苦手と新規に上限をつけて配合する
-    if(pick.length>=DAILY_N)break;
-    if(isWeakQ(it.q)){ if(nw>=DAILY_WEAK_MAX)continue; nw++; }
-    else if(isNewQ(it.q)){ if(nn>=DAILY_NEW_MAX)continue; nn++; }
-    pick.push(it.q);used.add(it.q.id);
-  }
-  for(const it of sc){                                       // 足りなければ上限を外して補充
-    if(pick.length>=DAILY_N)break;
-    if(!used.has(it.q.id)){pick.push(it.q);used.add(it.q.id);}
-  }
-  let now=pick.filter(isNewQ).length;                        // 新しい問題を最低でも数問は入れる
-  if(now<DAILY_NEW_MIN){
-    for(const it of sc){
-      if(now>=DAILY_NEW_MIN)break;
-      if(used.has(it.q.id)||!isNewQ(it.q))continue;
-      let k=-1;
-      for(let j=pick.length-1;j>=0;j--){ if(!isWeakQ(pick[j])&&!isNewQ(pick[j])){k=j;break;} }
-      if(k<0)break;
-      used.delete(pick[k].id); pick[k]=it.q; used.add(it.q.id); now++;
-    }
-  }
+  const doneToday=q=>learnLastDay(q)===today;
+  // 未挑戦: 順不同
+  const fresh=shuffle(all.filter(isNewQ));
+  // 復習どき: 次回日が今日以前。段が浅いもの（誤答直後・間隔の短いもの）→ 期限の古いもの、の順
+  const due=all.filter(q=>{const d=learnDue(q);return d!=null&&d<=today&&!doneToday(q);})
+    .map(q=>({q,L:learnOf(q.id),r:Math.random()}))
+    .sort((a,b)=>(a.L.k-b.L.k)||(a.L.due-b.L.due)||(a.r-b.r)).map(x=>x.q);
+  // 既出の再確認: 解いたことはあるが今日は予定のない問題。
+  // 苦手 → 予定のない旧問題（先の予定が入っているものは後回し）→ 長く見ていないもの、の順
+  const fill=all.filter(q=>!isNewQ(q)&&!doneToday(q)&&!(learnDue(q)!=null&&learnDue(q)<=today))
+    .map(q=>{const d=learnLastDay(q);return {q,w:isWeakQ(q)?0:1,p:learnDue(q)==null?0:1,d:d==null?-1:d,r:Math.random()};})
+    .sort((a,b)=>(a.w-b.w)||(a.p-b.p)||(a.d-b.d)||(a.r-b.r)).map(x=>x.q);
+  // 配分: 復習が5問を超える日は未挑戦を減らす（最低 DAILY_NEW_MIN）。ただし10問の成立を優先する
+  let nNew=Math.min(fresh.length,DAILY_NEW_BASE);
+  if(due.length>DAILY_N-DAILY_NEW_BASE)nNew=Math.min(fresh.length,Math.max(DAILY_NEW_MIN,DAILY_N-due.length));
+  let nRev=Math.min(due.length,DAILY_N-nNew);
+  const pick=fresh.slice(0,nNew).concat(due.slice(0,nRev));
+  const used=new Set(pick.map(q=>q.id));
+  const take=src=>{for(const q of src){if(pick.length>=DAILY_N)break;if(!used.has(q.id)){pick.push(q);used.add(q.id);}}};
+  take(fill);                                  // 復習が足りなければ既出の再確認で補う
+  take(fresh);                                 // それでも足りなければ未挑戦を増やす（初日は未挑戦10問）
+  take(due);                                   // 未挑戦が尽きていれば復習を増やす
+  take(shuffle(all.filter(q=>!used.has(q.id))));  // 最後の手段: 今日すでに解いた問題（残りはこれしかない）
   return shuffle(pick).slice(0,DAILY_N);
 }
 function daily(){
@@ -1525,7 +1591,9 @@ function answer(k){
   st.d=dayNum(); if(!ok)st.wd=st.d;
   if(g.daily&&state.daily&&!state.daily.ok.includes(q.id)&&!state.daily.ng.includes(q.id))
     (ok?state.daily.ok:state.daily.ng).push(q.id);
-  state.stats[q.id]=st;save();
+  state.stats[q.id]=st;
+  learnRecord(q,ok);                       // 復習スケジュール用の内部記録（実績判定には使わない）
+  save();
   const head=k===-1?'⏰ 時間切れ':(ok?'⭕ 正解':'❌ 不正解');
   $('fb').innerHTML=`<div class="exp"><b>${head}</b>　${esc(q.ex)}</div>
     <button class="btn btn-primary" style="margin-top:12px" onclick="next()">次へ ›</button>`;
