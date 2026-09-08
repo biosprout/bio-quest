@@ -34,7 +34,8 @@ const dailyInfo = () => page.evaluate(() => {
     fresh: qs.filter(q => !state.stats[q.id] && !learnOf(q.id)).length,
     due: qs.filter(q => { const L = learnOf(q.id); return L && L.due != null && L.due <= dayNum(); }).length,
     fill: qs.filter(q => (state.stats[q.id] || learnOf(q.id)) && !(learnOf(q.id) && learnOf(q.id).due != null && learnOf(q.id).due <= dayNum())).length,
-    weak: qs.filter(q => isWeakQ(q)).length };
+    weak: qs.filter(q => isWeakQ(q)).length,
+    legacy: qs.filter(q => state.stats[q.id] && !learnOf(q.id)).length };
 });
 // 今日の10問を最後まで解く。decide(q, i) が true なら正解を選ぶ
 async function playDaily(decide, opts = {}) {
@@ -298,6 +299,37 @@ console.log('\n[12] 対象不足: 未挑戦が尽きた／復習が多すぎる�
   await page.evaluate(() => { curLv = 'all'; });
 }
 
+console.log('\n[12b] 旧問題の再確認枠: 期限到来の復習 > 未挑戦2 > 旧問題1 > 残り未挑戦（合計5）');
+{
+  // 準備: 旧問題（stats のみ）50問、追跡中で今日 due の問題 n 問、残りは未挑戦
+  const seed = async (nDue) => {
+    await page.evaluate((nDue) => { state.stats = {}; state.learn = { v: 1, since: '2026-09-01', q: {} }; const t = dayNum();
+      Q.slice(0, 50).forEach((q, i) => { state.stats[q.id] = { c: 1, w: i % 9 === 0 ? 2 : 0, d: t - 40 + i }; });
+      Q.slice(50, 50 + nDue).forEach(q => { state.stats[q.id] = { c: 1, w: 0, d: t - 2 }; state.learn.q[q.id] = { s: 1, n: 1, cd: 1, k: 0, ld: t - 2, lcd: t - 2, la: 0, lr: 1, due: t - 1, lp: 0 }; });
+      state.daily = null; save(); renderHome(); }, nDue);
+    return dailyInfo();
+  };
+  let di = await seed(5);
+  check('復習5 → 未挑戦4 + 復習5 + 旧問題1', di.fresh === 4 && di.due === 5 && di.legacy === 1 && di.uniq === 10, di);
+  di = await seed(4);
+  check('復習4 → 未挑戦5 + 復習4 + 旧問題1', di.fresh === 5 && di.due === 4 && di.legacy === 1 && di.uniq === 10, di);
+  di = await seed(7);
+  check('復習7 → 未挑戦2 + 復習7 + 旧問題1', di.fresh === 2 && di.due === 7 && di.legacy === 1 && di.uniq === 10, di);
+  di = await seed(9);
+  check('復習9 → 未挑戦2 + 復習8（旧問題枠は落とす）', di.fresh === 2 && di.due === 8 && di.legacy === 0 && di.uniq === 10, di);
+  di = await seed(0);
+  check('復習0 → 未挑戦5 + 旧問題5（1枠 + 再確認で補う）', di.fresh === 5 && di.due === 0 && di.legacy === 5 && di.uniq === 10, di);
+  const weakFirst = await page.evaluate(() => { const m = new Map(Q.map(q => [q.id, q])); return state.daily.ids.map(id => m.get(id)).filter(q => state.stats[q.id] && !learnOf(q.id)).filter(isWeakQ).length; });
+  check('旧問題は苦手が先に選ばれる（50問中6問が苦手 → 5枠すべて苦手）', weakFirst === 5, { weakFirst });
+  di = await seed(2);
+  check('復習2 → 未挑戦5 + 復習2 + 旧問題3', di.fresh === 5 && di.due === 2 && di.legacy === 3 && di.uniq === 10, di);
+  // 旧問題を1問解くと学習管理に入り、旧問題ではなくなる
+  const legId = await page.evaluate(() => { const m = new Map(Q.map(q => [q.id, q])); return state.daily.ids.map(id => m.get(id)).find(q => state.stats[q.id] && !learnOf(q.id)).id; });
+  await page.evaluate((id) => { const q = Q.find(q => q.id === id); g = { list: [q], i: 0, score: 0, miss: [], answered: false, combo: 0, maxCombo: 0, ta: false, t: 0, timer: null, field: 'all' }; renderQuiz(); answer(q.a); }, legId);
+  const nowLegacy = await page.evaluate((id) => isLegacyQ(Q.find(q => q.id === id)), legId);
+  check('解いた旧問題は isLegacyQ=false になり、以後は復習スケジュールで管理される', nowLegacy === false);
+}
+
 console.log('\n[13] 他モード（分野別・タイムアタック）の回答も記録され、達成は従来どおり');
 {
   await page.waitForTimeout(400);
@@ -313,7 +345,7 @@ console.log('\n[13] 他モード（分野別・タイムアタック）の回答
 console.log('\n[14] 更新チェック: APP_VER が新しい');
 {
   const ver = await page.evaluate(() => APP_VER);
-  check('APP_VER=20260908a', ver === '20260908a', ver);
+  check('APP_VER=20260908b', ver === '20260908b', ver);
 }
 
 check('ページエラーなし', pageErrors.length === 0, pageErrors);

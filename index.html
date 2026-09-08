@@ -1041,7 +1041,7 @@ function pool(field,lv){return Q.filter(q=>(field==='all'||q.f===field)&&(lv==='
 function weak(){return Q.filter(q=>{const s=state.stats[q.id];return s&&s.w>0&&s.c<=s.w})}
 function rankOf(p){return p>=95?'S':p>=85?'A':p>=70?'B':p>=50?'C':'D'}
 
-const APP_VER='20260908a';
+const APP_VER='20260908b';
 function forceUpdate(){
   try{ localStorage.setItem('__bq_upd', Date.now()); }catch(e){}
   const base=location.origin+location.pathname;
@@ -1369,8 +1369,8 @@ let g={list:[],i:0,score:0,miss:[],answered:false,combo:0,maxCombo:0,ta:false,t:
    旧記録の扱い（移行は遅延方式）:
      更新前の回答は state.stats に残したまま読み取り専用で参照し、更新後に初めて
      解いたときに L を作る。過去の日時や「別の日に正解した」事実は捏造しない。
-     したがって旧問題は一斉に「期限超過」にはならず、復習枠が余ったときに
-     「既出の再確認」として少しずつ混ざる。                                  */
+     したがって旧問題は一斉に「期限超過」にはならない。通常日は「旧問題の再確認1問」の
+     枠で少しずつ学習管理に取り込み、復習枠が余った日はさらに再確認として混ざる。       */
 const LEARN={
   STEPS:[1,3,7,14,30,60], // 別の日に正解するたびに次の段へ。次回までの日数
   LAPSE_DAYS:1,           // 誤答したら段を戻し、翌日にもう一度
@@ -1426,12 +1426,16 @@ function learnSummary(){
 }
 
 /* ===================== 今日の10問 =====================
-   基本は「未挑戦5問 ＋ 復習5問」。復習どきの問題が多い日は未挑戦を減らして復習を優先する。
+   通常日は「未挑戦4〜5 ＋ 復習4〜5 ＋ 旧問題の再確認1」。
+   優先順位は 期限到来の復習 → 未挑戦の最低2問 → 旧問題の再確認1問 → 残りの未挑戦（合計5まで）。
+   復習が多い日は復習を優先して未挑戦を減らし（最低2）、旧問題の再確認枠は落としてよい。
    足りない側は「既出の再確認」で補い、同じセットに同じ問題は入れない。
    はじめてで未挑戦しかない日は、未挑戦10問でよい。たまった数は表に出さない。 */
-const DAILY_N=10, DAILY_NEW_BASE=5, DAILY_NEW_MIN=2;
+const DAILY_N=10, DAILY_NEW_BASE=5, DAILY_NEW_MIN=2, DAILY_LEGACY=1;
 function isNewQ(q){ return !state.stats[q.id]&&!learnOf(q.id); }
 function isWeakQ(q){ const s=state.stats[q.id]; return !!(s&&s.w>0&&s.c<=s.w); }
+// 旧問題: 更新前に解いたことはあるが、新しい学習管理ではまだ一度も評価していない問題
+function isLegacyQ(q){ return !!state.stats[q.id]&&!learnOf(q.id); }
 function buildDaily(){
   const all=pool('all',curLv);
   if(all.length<4)return [];
@@ -1448,14 +1452,19 @@ function buildDaily(){
   const fill=all.filter(q=>!isNewQ(q)&&!doneToday(q)&&!(learnDue(q)!=null&&learnDue(q)<=today))
     .map(q=>{const d=learnLastDay(q);return {q,w:isWeakQ(q)?0:1,p:learnDue(q)==null?0:1,d:d==null?-1:d,r:Math.random()};})
     .sort((a,b)=>(a.w-b.w)||(a.p-b.p)||(a.d-b.d)||(a.r-b.r)).map(x=>x.q);
-  // 配分: 復習が5問を超える日は未挑戦を減らす（最低 DAILY_NEW_MIN）。ただし10問の成立を優先する
-  let nNew=Math.min(fresh.length,DAILY_NEW_BASE);
-  if(due.length>DAILY_N-DAILY_NEW_BASE)nNew=Math.min(fresh.length,Math.max(DAILY_NEW_MIN,DAILY_N-due.length));
-  let nRev=Math.min(due.length,DAILY_N-nNew);
-  const pick=fresh.slice(0,nNew).concat(due.slice(0,nRev));
+  // 旧問題の再確認候補: fill の並び（苦手 → 長く見ていないもの）のうち旧問題だけ
+  const legacy=fill.filter(isLegacyQ);
+  // 配分（優先順）: 1) 期限到来の復習（未挑戦の最低2問ぶんは残す） 2) 未挑戦の最低2問
+  //                3) 旧問題の再確認1問 4) 残りの未挑戦（合計5まで）。10問の成立を優先する
+  let left=DAILY_N;
+  const nRev=Math.min(due.length,left-Math.min(fresh.length,DAILY_NEW_MIN)); left-=nRev;
+  const nNewMin=Math.min(fresh.length,DAILY_NEW_MIN,left); left-=nNewMin;
+  const nLeg=Math.min(legacy.length,DAILY_LEGACY,left); left-=nLeg;
+  const nNewMore=Math.min(fresh.length-nNewMin,Math.max(0,DAILY_NEW_BASE-nNewMin),left); left-=nNewMore;
+  const pick=due.slice(0,nRev).concat(fresh.slice(0,nNewMin+nNewMore),legacy.slice(0,nLeg));
   const used=new Set(pick.map(q=>q.id));
   const take=src=>{for(const q of src){if(pick.length>=DAILY_N)break;if(!used.has(q.id)){pick.push(q);used.add(q.id);}}};
-  take(fill);                                  // 復習が足りなければ既出の再確認で補う
+  take(fill);                                  // まだ足りなければ既出の再確認（苦手 → 旧問題 → 予定の先のもの）で補う
   take(fresh);                                 // それでも足りなければ未挑戦を増やす（初日は未挑戦10問）
   take(due);                                   // 未挑戦が尽きていれば復習を増やす
   take(shuffle(all.filter(q=>!used.has(q.id))));  // 最後の手段: 今日すでに解いた問題（残りはこれしかない）
